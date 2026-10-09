@@ -25,6 +25,11 @@ export type ColorRule = {
   priority: number;
 };
 
+export type LibraryScope =
+  | { kind: "library" }
+  | { kind: "collection"; collectionID: number }
+  | { kind: "tag"; tag: string };
+
 export type PluginState = {
   schemaVersion: 1;
   items: Record<number, CardState>;
