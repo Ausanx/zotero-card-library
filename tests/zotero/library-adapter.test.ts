@@ -51,4 +51,32 @@ describe("library adapter", () => {
     const adapter = createLibraryAdapter(zotero, { memoField: "shortTitle" });
     assert.equal((await adapter.list({ kind: "library" }))[0].memo, "A memo");
   });
+
+  it("opens the deterministic primary PDF when attachments are not ordered", async () => {
+    const opened: number[] = [];
+    const makeAttachment = (id: number) => ({
+      id,
+      attachmentContentType: "application/pdf",
+      getField: (field: string) => (field === "title" ? `${id}.pdf` : ""),
+      getFilePathAsync: async () => `C:/${id}.pdf`,
+    });
+    const item = {
+      id: 1,
+      isRegularItem: () => true,
+      getField: (field: string) => (field === "title" ? "Paper" : ""),
+      getAttachments: () => [3, 2],
+    };
+    const zotero = {
+      Libraries: { userLibraryID: 10 },
+      Items: {
+        getAll: () => [item],
+        get: (id: number) => (id === 1 ? item : makeAttachment(id)),
+      },
+      Collections: { get: () => ({ getChildItems: () => [] }) },
+      Reader: { open: async (id: number) => void opened.push(id) },
+    };
+
+    await createLibraryAdapter(zotero).openPDF(1);
+    assert.deepEqual(opened, [2]);
+  });
 });

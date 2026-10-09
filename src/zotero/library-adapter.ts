@@ -1,5 +1,6 @@
 import {
   normalizePaper,
+  selectPrimaryAttachment,
   type PaperDTO,
   type RawPaper,
 } from "../domain/metadata";
@@ -66,7 +67,7 @@ export function createLibraryAdapter(
     async openPDF(itemID, attachmentID) {
       const item = zotero.Items.get(itemID) as ZoteroItemLike | null;
       if (!item) throw new Error("Item not found");
-      const chosen = attachmentID || (await rawPaper(zotero, item)).attachments[0]?.id;
+      const chosen = attachmentID || selectPrimaryAttachment((await rawPaper(zotero, item)).attachments)?.id;
       if (!chosen) throw new Error("No PDF attachment");
       await zotero.Reader.open(chosen);
     },
