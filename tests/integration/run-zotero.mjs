@@ -24,6 +24,9 @@ const result = join(root, "result.json"),
 const substitutions = {
   __RESULT_PATH__: result,
   __SCREENSHOT_PATH__: screenshot,
+  __DETAIL_SCREENSHOT_PATH__: join(root, "detail.png"),
+  __COMPACT_SCREENSHOT_PATH__: join(root, "compact.png"),
+  __DARK_SCREENSHOT_PATH__: join(root, "dark.png"),
   __MISSING_PATH__: join(root, "missing.pdf"),
   __FIXTURE_PATHS__: Object.fromEntries(
     ["figure-caption", "two-column", "no-figure"].map((name) => [

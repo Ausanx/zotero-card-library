@@ -10,6 +10,7 @@ for (const name of [
   "bootstrap.js",
   "content/scripts/zcl.js",
   "content/card-library.xhtml",
+  "content/paper-detail.xhtml",
   "content/pdf-host.mjs",
   "README.md",
   "LICENSE",

@@ -5,7 +5,10 @@ import { defaultCardState, importBackup } from "../data/state-store";
 import type { LibraryAdapter } from "../zotero/library-adapter";
 import type { CoverService, CoverResult } from "../covers/cover-service";
 import { renderBoard } from "./card-board";
-import { createDetailDrawer } from "./detail-drawer";
+import { resolveCardColor } from "./card-view";
+import { resolveColor } from "../domain/color-rules";
+import { createDetailView } from "./detail-view";
+import { WindowManager } from "../window/window-manager";
 import { renderSidebar, type NavigationData } from "./sidebar";
 import { openCropEditor } from "./crop-editor";
 import { openSettings } from "./settings-panel";
@@ -24,7 +27,8 @@ export class AppController {
   private readonly root: HTMLElement;
   private readonly board: HTMLElement;
   private readonly main: HTMLElement;
-  private readonly drawer: ReturnType<typeof createDetailDrawer>;
+  private readonly detailManager: WindowManager;
+  private detailView?: ReturnType<typeof createDetailView>;
   private items: PaperDTO[] = [];
   private navigation: NavigationData = { collections: [], tags: [] };
   private selection = new Set<number>();
@@ -44,20 +48,31 @@ export class AppController {
     this.main = d.getElementById("zcl-main") as HTMLElement;
     if (!this.root || !this.board || !this.main)
       throw new Error("Card library root is missing");
-    this.drawer = createDetailDrawer({
+    this.detailManager = new WindowManager(
+      (window) => this.mountDetail(window),
+      {
+        page: "paper-detail.xhtml",
+        name: "zcl-paper-detail",
+        minWidth: 600,
+      },
+    );
+  }
+  get detailWindow(): Window | null {
+    return this.detailManager.window;
+  }
+  private mountDetail(window: Window): void {
+    if (this.disposed || window.closed) return;
+    const d = window.document;
+    const options = this.options;
+    const view = createDetailView({
       document: d,
-      width: options.state.windowState.detailWidth,
-      onClose: () => {
-        this.detailID = null;
-        this.root.classList.remove("has-detail");
-      },
-      onWidth: (width) => {
-        this.root.style.setProperty("--detail-width", `${width}px`);
-        options.state.windowState.detailWidth = width;
-        this.run(() => this.persist());
-      },
-      onOpenPDF: (item) => this.run(() => this.openPDF(item)),
-      onState: (item, patch) => this.run(() => this.updateCard(item, patch)),
+      onClose: () => this.detailManager.close(),
+      onOpenPDF: (item) => this.run(() => this.openPDF(item), d),
+      onState: (item, patch) =>
+        this.run(async () => {
+          await this.updateCard(item, patch);
+          this.refreshDetail();
+        }, d),
       onAttachment: (item, id) =>
         this.run(async () => {
           await this.updateCard(item, {
@@ -66,22 +81,24 @@ export class AppController {
           });
           this.coverURLs.delete(item.itemID);
           this.render();
-          this.showDetail(item.itemID);
-        }),
+          this.refreshDetail();
+        }, d),
       candidates: options.covers
         ? (item) => options.covers!.getCandidates(item.attachmentID!)
         : undefined,
       onCandidate: (item, candidate) =>
-        this.run(async () =>
-          this.applyCover(
-            item,
-            await options.covers!.choose(
-              candidate.attachmentID,
-              candidate.page,
-              candidate.bbox,
-              "candidate",
+        this.run(
+          async () =>
+            this.applyCover(
+              item,
+              await options.covers!.choose(
+                candidate.attachmentID,
+                candidate.page,
+                candidate.bbox,
+                "candidate",
+              ),
             ),
-          ),
+          d,
         ),
       onManualCrop: (item) => {
         if (options.covers && item.attachmentID)
@@ -90,11 +107,23 @@ export class AppController {
           );
       },
     });
-    this.root.append(this.drawer.element);
-    this.root.style.setProperty(
-      "--detail-width",
-      `${options.state.windowState.detailWidth}px`,
+    this.detailView = view;
+    d.getElementById("zcl-detail-root")!.append(view.element);
+    window.addEventListener(
+      "unload",
+      () => {
+        view.destroy();
+        d.querySelectorAll("dialog").forEach((dialog: Element) =>
+          dialog.remove(),
+        );
+        if (this.detailView === view) {
+          this.detailView = undefined;
+          this.detailID = null;
+        }
+      },
+      { once: true },
     );
+    this.refreshDetail();
   }
   async start(): Promise<void> {
     const sort = this.options.document.getElementById(
@@ -116,9 +145,6 @@ export class AppController {
     const refresh = this.options.document.getElementById("zcl-refresh");
     if (refresh)
       this.listen(refresh, "click", () => this.run(() => this.refresh()));
-    this.listen(this.board, "click", (event) => {
-      if (event.target === this.board) this.drawer.hide();
-    });
     await this.refresh();
     this.main.scrollTop = this.options.state.viewState.scrollTop;
   }
@@ -144,7 +170,7 @@ export class AppController {
     this.coverURLs.clear();
     this.renderSidebar();
     this.render();
-    if (this.detailID) this.showDetail(this.detailID);
+    this.refreshDetail();
   }
   destroy(): void {
     if (this.disposed) return;
@@ -153,7 +179,8 @@ export class AppController {
     clearTimeout(this.queryTimer);
     clearTimeout(this.scrollTimer);
     this.observer?.disconnect();
-    this.drawer.destroy();
+    this.detailManager.close();
+    this.detailView?.destroy();
     this.options.document
       .querySelectorAll("dialog")
       .forEach((dialog: Element) => dialog.remove());
@@ -167,18 +194,30 @@ export class AppController {
     target.addEventListener(type, listener);
     this.cleanups.push(() => target.removeEventListener(type, listener));
   }
-  private run(action: () => Promise<unknown>): void {
+  private run(
+    action: () => Promise<unknown>,
+    document = this.options.document,
+  ): void {
     void action().catch(() =>
-      this.message("操作失败，请检查本地文件和保存权限后重试。"),
+      this.message("操作失败，请检查本地文件和保存权限后重试。", document),
     );
   }
-  private message(text: string): void {
-    const node = this.options.document.getElementById("zcl-message");
+  private message(text: string, document = this.options.document): void {
+    const node = document.getElementById("zcl-message");
     if (node) node.textContent = text;
   }
   private renderSidebar(): void {
     const state = this.options.state;
     this.root.dataset.theme = state.viewState.theme;
+    this.options.document.documentElement!.setAttribute(
+      "data-theme",
+      state.viewState.theme,
+    );
+    if (this.detailWindow)
+      this.detailWindow.document.documentElement!.setAttribute(
+        "data-theme",
+        state.viewState.theme,
+      );
     const sidebar = renderSidebar({
       document: this.options.document,
       navigation: this.navigation,
@@ -416,14 +455,46 @@ export class AppController {
     );
   }
   private showDetail(id: number): void {
-    const item = this.items.find((i) => i.itemID === id);
+    if (this.disposed || !this.items.some((item) => item.itemID === id)) return;
+    this.detailID = id;
+    const existing = this.detailManager.window;
+    const window = this.detailManager.open(
+      this.options.document.defaultView || undefined,
+      {
+        width: 960,
+        height: 820,
+        detailWidth: this.options.state.windowState.detailWidth,
+      },
+    );
+    if (!window) {
+      this.detailID = null;
+      this.message("无法打开详情窗口，请重试。");
+    } else if (existing) this.refreshDetail();
+  }
+  private refreshDetail(): void {
+    if (!this.detailView || !this.detailID || this.disposed) return;
+    const item = this.items.find((i) => i.itemID === this.detailID);
     if (!item) {
-      this.drawer.hide();
+      this.detailManager.close();
       return;
     }
-    this.detailID = id;
-    this.root.classList.add("has-detail");
-    this.drawer.show(this.displayed(item), this.cardState(id));
+    const d = this.detailWindow!.document;
+    d.documentElement!.setAttribute(
+      "data-theme",
+      this.options.state.viewState.theme,
+    );
+    d.title = `${item.title} — 文献详情`;
+    const displayed = this.displayed(item);
+    const state = this.cardState(item.itemID);
+    this.detailView.show(
+      displayed,
+      state,
+      resolveCardColor(
+        displayed,
+        state,
+        resolveColor(displayed, state, this.options.state.colorRules),
+      ),
+    );
   }
   private async updateCard(
     item: PaperDTO,
@@ -453,7 +524,7 @@ export class AppController {
     state.updatedAt = Date.now();
     await this.persist();
     this.render();
-    if (this.detailID === item.itemID) this.showDetail(item.itemID);
+    if (this.detailID === item.itemID) this.refreshDetail();
   }
   private cardState(id: number): CardState {
     return (this.options.state.items[id] ||= defaultCardState());
@@ -477,11 +548,6 @@ export class AppController {
     await this.options.saveState(valid);
     Object.assign(this.options.state, valid);
     this.selection.clear();
-    this.root.style.setProperty(
-      "--detail-width",
-      `${valid.windowState.detailWidth}px`,
-    );
-    this.drawer.setWidth(valid.windowState.detailWidth);
     const sort = this.options.document.getElementById(
       "zcl-sort",
     ) as HTMLSelectElement | null;

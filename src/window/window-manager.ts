@@ -3,7 +3,15 @@ import type { PluginState } from "../domain/types";
 export type CardWindowMount = (window: Window) => Promise<void> | void;
 export class WindowManager {
   private cardWindow: Window | null = null;
-  constructor(private readonly mount: CardWindowMount) {}
+  constructor(
+    private readonly mount: CardWindowMount,
+    private readonly options: {
+      page?: string;
+      name?: string;
+      minWidth?: number;
+      minHeight?: number;
+    } = {},
+  ) {}
   open(
     hostWindow?: Window,
     geometry: PluginState["windowState"] = {
@@ -18,9 +26,9 @@ export class WindowManager {
     }
     const host = hostWindow || Zotero.getMainWindow();
     const opened = (host as any).openDialog(
-      `chrome://${config.addonRef}/content/card-library.xhtml`,
-      "zcl-card-library",
-      `chrome,dialog=no,resizable,centerscreen,width=${Math.max(800, geometry.width)},height=${Math.max(600, geometry.height)}`,
+      `chrome://${config.addonRef}/content/${this.options.page || "card-library.xhtml"}`,
+      this.options.name || "zcl-card-library",
+      `chrome,dialog=no,resizable,centerscreen,width=${Math.max(this.options.minWidth || 800, geometry.width)},height=${Math.max(this.options.minHeight || 600, geometry.height)}`,
     ) as Window | null;
     if (!opened) return null;
     this.cardWindow = opened;

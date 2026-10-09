@@ -1,5 +1,5 @@
 // Runs only in a disposable Zotero profile prepared by run-zotero.mjs.
-/* global Zotero, IOUtils, Services, Components, ChromeUtils, PathUtils, atob, __RESULT_PATH__, __FIXTURE_PATHS__, __MISSING_PATH__, __SCREENSHOT_PATH__ */
+/* global Zotero, IOUtils, Services, Components, ChromeUtils, PathUtils, atob, __RESULT_PATH__, __FIXTURE_PATHS__, __MISSING_PATH__, __SCREENSHOT_PATH__, __DETAIL_SCREENSHOT_PATH__, __COMPACT_SCREENSHOT_PATH__, __DARK_SCREENSHOT_PATH__ */
 /* exported startup, shutdown, install, uninstall */
 var resultPath;
 const { setTimeout } = ChromeUtils.importESModule(
@@ -144,28 +144,38 @@ async function runAcceptance() {
       card(targets[3].id).textContent.includes("不可用"),
       "missing linked PDF preserves its metadata card",
     );
+    const boardWidth = d
+      .getElementById("zcl-main")
+      .getBoundingClientRect().width;
     card(targets[0].id).click();
-    for (let i = 0; i < 200 && !d.querySelector(".zcl-candidate"); i++)
+    const detailWindow = Zotero.ZoteroCardLibrary.controller.detailWindow;
+    for (
+      let i = 0;
+      i < 200 && !detailWindow.document.querySelector(".zcl-candidate");
+      i++
+    )
       await wait(100);
+    const dd = detailWindow.document;
     assert(
-      !!d.querySelector(".zcl-candidate"),
+      detailWindow !== window && !detailWindow.closed,
+      "card opens a separate native detail window",
+    );
+    assert(
+      !!dd.querySelector(".zcl-candidate"),
       "real bundled PDF.js finds an internal Figure candidate",
     );
     assert(
-      d
-        .querySelector(".zcl-detail-drawer")
+      dd
+        .querySelector(".zcl-detail-view")
         .textContent.includes("10.1234/test0"),
-      "detail drawer renders DOI",
+      "detail window renders DOI",
     );
-    const boardRight = d
-      .getElementById("zcl-main")
-      .getBoundingClientRect().right;
     assert(
-      boardRight <=
-        d.querySelector(".zcl-detail-drawer").getBoundingClientRect().left + 1,
-      "detail drawer reduces board width instead of overlapping cards",
+      d.getElementById("zcl-main").getBoundingClientRect().width ===
+        boardWidth && !d.querySelector(".zcl-detail-view"),
+      "detail window preserves full board width",
     );
-    d.querySelector(".zcl-candidate").click();
+    dd.querySelector(".zcl-candidate").click();
     await wait(500);
     const statePath = PathUtils.join(
       Zotero.getProfileDirectory().path,
@@ -216,24 +226,24 @@ async function runAcceptance() {
     );
     // Test manual cropping through the accessible normalized-coordinate controls.
     card(targets[0].id).click();
-    [...d.querySelectorAll("button")]
+    [...dd.querySelectorAll("button")]
       .find((n) => n.textContent === "手动框选 PDF 区域")
       .click();
     for (
       let i = 0;
-      i < 100 && !d.querySelector(".zcl-crop-stage img")?.src;
+      i < 100 && !dd.querySelector(".zcl-crop-stage img")?.src;
       i++
     )
       await wait(100);
-    const inputs = d.querySelectorAll(".zcl-crop-coordinates input");
+    const inputs = dd.querySelectorAll(".zcl-crop-coordinates input");
     [10, 30, 90, 65].forEach((value, i) => {
       inputs[i].value = String(value);
       inputs[i].dispatchEvent(new window.Event("change"));
     });
-    [...d.querySelectorAll("dialog button")]
+    [...dd.querySelectorAll("dialog button")]
       .find((n) => n.textContent === "保存封面")
       .click();
-    for (let i = 0; i < 100 && d.querySelector("dialog"); i++) await wait(100);
+    for (let i = 0; i < 100 && dd.querySelector("dialog"); i++) await wait(100);
     state = JSON.parse(await IOUtils.readUTF8(statePath));
     assert(
       state.items[targets[0].id].cover.source === "manual",
@@ -244,8 +254,8 @@ async function runAcceptance() {
       "manual crop does not write Zotero annotations",
     );
     card(targets[4].id).click();
-    const attachmentSelect = d.querySelector(
-      '.zcl-drawer-section select[aria-label="封面与阅读的来源附件"]',
+    const attachmentSelect = dd.querySelector(
+      '.zcl-detail-section select[aria-label="封面与阅读的来源附件"]',
     );
     attachmentSelect.value = String(alternate.id);
     attachmentSelect.dispatchEvent(new window.Event("change"));
@@ -319,16 +329,75 @@ async function runAcceptance() {
       "validated backup import restores local favorites",
     );
     card(targets[0].id).click();
-    const handle = d.querySelector(".zcl-drawer-resize-handle");
-    handle.dispatchEvent(
-      new window.KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true }),
+    assert(
+      Zotero.ZoteroCardLibrary.controller.detailWindow === detailWindow,
+      "another card reuses the detail window",
     );
+    assert(
+      dd.querySelector(".zcl-detail-title").textContent === originalTitle,
+      "reused detail window switches metadata",
+    );
+    detailWindow.resizeTo(820, 760);
+    await wait(200);
+    assert(
+      d.getElementById("zcl-main").getBoundingClientRect().width === boardWidth,
+      "resizing details leaves the board unchanged",
+    );
+    const statusSelect = dd.querySelector(".zcl-detail-controls select");
+    statusSelect.value = "read";
+    statusSelect.dispatchEvent(new detailWindow.Event("change"));
     await wait(200);
     state = JSON.parse(await IOUtils.readUTF8(statePath));
     assert(
-      state.windowState.detailWidth === 440,
-      "detail width can be adjusted and persisted",
+      state.items[targets[0].id].readingStatus === "read",
+      "detail window saves reading status locally",
     );
+    assert(
+      dd.querySelector('input[type="color"]').value === "#4d795f",
+      "detail color control follows reading status",
+    );
+    controller.options.state.colorRules = [
+      { source: "tag", value: "传感材料", color: "navy", priority: 0 },
+    ];
+    await controller.refresh();
+    assert(
+      dd.querySelector('input[type="color"]').value === "#000080" &&
+        card(targets[0].id).dataset.tone === "dark",
+      "imported named rule colors match the card and color control",
+    );
+    const colorInput = dd.querySelector('input[type="color"]');
+    colorInput.value = "#888888";
+    colorInput.dispatchEvent(new detailWindow.Event("change"));
+    await wait(200);
+    const midCard = card(targets[0].id);
+    assert(
+      window.getComputedStyle(midCard).color === "rgb(0, 0, 0)" &&
+        window.getComputedStyle(midCard.querySelector(".zcl-card-authors"))
+          .opacity === "1",
+      "mid-tone cards retain readable main and secondary text",
+    );
+    [...dd.querySelectorAll("button")]
+      .find((n) => n.textContent === "恢复规则颜色")
+      .click();
+    await wait(200);
+    assert(
+      dd.querySelector('input[type="color"]').value === "#000080",
+      "restoring rule color refreshes the detail control",
+    );
+    controller.options.state.colorRules = [];
+    await controller.refresh();
+    const openPDF = controller.options.library.openPDF;
+    controller.options.library.openPDF = async () => {
+      throw new Error("Acceptance: PDF unavailable");
+    };
+    dd.querySelector(".zcl-primary-button").click();
+    await wait(100);
+    assert(
+      dd.getElementById("zcl-message").textContent.includes("操作失败"),
+      "detail failures are visible in the detail window",
+    );
+    controller.options.library.openPDF = openPDF;
+    dd.getElementById("zcl-message").textContent = "";
     const newItem = new Zotero.Item("journalArticle");
     newItem.setField("title", "Newly added fixture");
     await newItem.saveTx();
@@ -351,30 +420,85 @@ async function runAcceptance() {
       .find((n) => n.textContent.includes("浅色"))
       .click();
     await wait(200);
-    // Render a privileged local screenshot for layout inspection.
-    const canvas = d.createElementNS("http://www.w3.org/1999/xhtml", "canvas");
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-    try {
+    assert(
+      dd.documentElement.dataset.theme === "light",
+      "theme changes propagate to the detail window",
+    );
+    // Render privileged local screenshots for layout inspection.
+    async function screenshot(target, path) {
+      const canvas = target.document.createElementNS(
+        "http://www.w3.org/1999/xhtml",
+        "canvas",
+      );
+      canvas.width = target.innerWidth;
+      canvas.height = target.innerHeight;
       canvas
         .getContext("2d")
         .drawWindow(
-          window,
+          target,
           0,
           0,
-          window.innerWidth,
-          window.innerHeight,
+          target.innerWidth,
+          target.innerHeight,
           "white",
         );
       const data = canvas.toDataURL("image/png").split(",")[1];
-      const bytes = Uint8Array.from(atob(data), (c) => c.charCodeAt(0));
-      await IOUtils.write(__SCREENSHOT_PATH__, bytes);
-      results.push("rendered native-window screenshot");
-    } catch (error) {
-      results.push("screenshot unavailable: " + error);
+      await IOUtils.write(
+        path,
+        Uint8Array.from(atob(data), (c) => c.charCodeAt(0)),
+      );
     }
+    for (
+      let i = 0;
+      i < 200 && d.querySelectorAll(".zcl-card-cover img").length < 5;
+      i++
+    )
+      await wait(100);
+    await screenshot(window, __SCREENSHOT_PATH__);
+    await screenshot(detailWindow, __DETAIL_SCREENSHOT_PATH__);
+    window.resizeTo(800, 900);
+    await wait(300);
+    assert(
+      [...d.querySelectorAll(".zcl-card")].every(
+        (node) => node.scrollWidth <= node.clientWidth,
+      ),
+      "compact cards keep their controls inside the card",
+    );
+    await screenshot(window, __COMPACT_SCREENSHOT_PATH__);
+    window.resizeTo(1440, 900);
+    [...d.querySelectorAll(".zcl-sidebar-footer button")]
+      .find((n) => n.textContent.includes("深色"))
+      .click();
+    await wait(200);
+    assert(
+      dd.documentElement.dataset.theme === "dark",
+      "dark theme also propagates to the detail window",
+    );
+    await screenshot(window, __DARK_SCREENSHOT_PATH__);
+    [...d.querySelectorAll(".zcl-sidebar-footer button")]
+      .find((n) => n.textContent.includes("浅色"))
+      .click();
+    dd.querySelector('[aria-label="关闭详情"]').click();
+    await wait(100);
+    assert(detailWindow.closed, "detail close button closes its native window");
+    card(targets[0].id).click();
+    const reopenedDetail = Zotero.ZoteroCardLibrary.controller.detailWindow;
+    for (
+      let i = 0;
+      i < 100 && !reopenedDetail.document.querySelector(".zcl-detail-view");
+      i++
+    )
+      await wait(100);
+    assert(
+      reopenedDetail !== detailWindow && !reopenedDetail.closed,
+      "closed detail window can reopen",
+    );
     window.close();
     await wait(400);
+    assert(
+      reopenedDetail.closed,
+      "closing the card library also closes its detail window",
+    );
     assert(
       !Zotero.ZoteroCardLibrary.api.openCardLibrary().closed,
       "card window can reopen after cleanup",

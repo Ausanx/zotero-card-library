@@ -3,11 +3,10 @@ import type { CardState } from "../domain/types";
 import type { FigureCandidate } from "../covers/candidate-engine";
 import { defaultCardState } from "../data/state-store";
 import { element, button, option } from "./dom";
-export type DetailDrawerOptions = {
+import { normalizeCardColor } from "./card-view";
+export type DetailViewOptions = {
   document: Document;
-  width?: number;
   onClose?: () => void;
-  onWidth?: (width: number) => void;
   onOpenPDF?: (item: PaperDTO) => void;
   onState?: (item: PaperDTO, patch: Partial<CardState>) => void;
   onAttachment?: (item: PaperDTO, id: number) => void;
@@ -15,57 +14,21 @@ export type DetailDrawerOptions = {
   candidates?: (item: PaperDTO) => Promise<FigureCandidate[]>;
   onCandidate?: (item: PaperDTO, candidate: FigureCandidate) => void;
 };
-export function clampDetailWidth(width: number): number {
-  return Math.min(760, Math.max(320, Math.round(width)));
-}
 export function formatDetailAuthors(authors: string[]): string {
   return authors.length ? authors.join("；") : "作者未知";
 }
-export function createDetailDrawer(options: DetailDrawerOptions) {
+export function createDetailView(options: DetailViewOptions) {
   const d = options.document;
-  const drawer = element(d, "aside", "zcl-detail-drawer");
-  drawer.hidden = true;
-  drawer.setAttribute("aria-label", "文献详情");
-  drawer.style.width = `${clampDetailWidth(options.width || 420)}px`;
-  const handle = element(d, "div", "zcl-drawer-resize-handle");
-  handle.tabIndex = 0;
-  handle.setAttribute("role", "separator");
-  handle.setAttribute("aria-orientation", "vertical");
-  handle.setAttribute("aria-label", "调整详情宽度");
-  const content = element(d, "div", "zcl-drawer-content");
-  drawer.append(handle, content);
-  let dragging = false,
-    generation = 0;
-  const width = (value: number) => {
-    const w = clampDetailWidth(value);
-    drawer.style.width = `${w}px`;
-    handle.setAttribute("aria-valuenow", String(w));
-    options.onWidth?.(w);
-  };
-  const move = (event: MouseEvent) => {
-    if (dragging) width((d.defaultView?.innerWidth || 1440) - event.clientX);
-  };
-  const up = () => {
-    dragging = false;
-  };
-  handle.addEventListener("mousedown", (event) => {
-    dragging = true;
-    event.preventDefault();
-  });
-  handle.addEventListener("keydown", (event) => {
-    if (["ArrowLeft", "ArrowRight"].includes((event as KeyboardEvent).key)) {
-      event.preventDefault();
-      width(
-        parseInt(drawer.style.width) +
-          ((event as KeyboardEvent).key === "ArrowLeft" ? 20 : -20),
-      );
-    }
-  });
-  d.addEventListener("mousemove", move);
-  d.addEventListener("mouseup", up);
+  const view = element(d, "article", "zcl-detail-view");
+  view.hidden = true;
+  view.setAttribute("aria-label", "文献详情");
+  const content = element(d, "div", "zcl-detail-content");
+  view.append(content);
+  let generation = 0;
+  let metadata: HTMLElement;
   const hide = () => {
     generation++;
-    drawer.hidden = true;
+    view.hidden = true;
     options.onClose?.();
   };
   const escape = (event: KeyboardEvent) => {
@@ -76,15 +39,25 @@ export function createDetailDrawer(options: DetailDrawerOptions) {
       hide();
   };
   d.addEventListener("keydown", escape);
-  const show = (item: PaperDTO, state: CardState = defaultCardState()) => {
+  const show = (
+    item: PaperDTO,
+    state: CardState = defaultCardState(),
+    cardColor?: string,
+  ) => {
     const own = ++generation;
-    const close = button(d, "×", hide, "zcl-drawer-close");
+    const close = button(d, "×", hide, "zcl-detail-close");
     close.setAttribute("aria-label", "关闭详情");
-    content.replaceChildren(
+    const header = element(d, "header", "zcl-detail-header");
+    header.append(
       close,
       element(d, "p", "zcl-eyebrow", "文献详情"),
-      element(d, "h1", "zcl-drawer-title", item.title),
+      element(d, "h1", "zcl-detail-title", item.title),
     );
+    metadata = element(d, "div", "zcl-detail-metadata");
+    const tools = element(d, "aside", "zcl-detail-tools");
+    const layout = element(d, "div", "zcl-detail-layout");
+    layout.append(metadata, tools);
+    content.replaceChildren(header, layout);
     addSection("作者", formatDetailAuthors(item.authors));
     addSection(
       "期刊 / 出版物",
@@ -94,7 +67,7 @@ export function createDetailDrawer(options: DetailDrawerOptions) {
     const controls = element(
       d,
       "section",
-      "zcl-drawer-section zcl-detail-controls",
+      "zcl-detail-section zcl-detail-controls",
     );
     const statusLabel = element(d, "label", "", "阅读状态");
     const status = element(d, "select");
@@ -113,7 +86,10 @@ export function createDetailDrawer(options: DetailDrawerOptions) {
     const colorLabel = element(d, "label", "", "卡片颜色");
     const color = element(d, "input");
     color.type = "color";
-    color.value = state.colorOverride || "#55bfc4";
+    color.value = normalizeCardColor(
+      d,
+      cardColor || state.colorOverride || "#e5d8af",
+    );
     color.addEventListener("change", () =>
       options.onState?.(item, { colorOverride: color.value }),
     );
@@ -125,7 +101,7 @@ export function createDetailDrawer(options: DetailDrawerOptions) {
         options.onState?.(item, { colorOverride: null }),
       ),
     );
-    content.append(controls);
+    tools.append(controls);
     addSection(
       "简记",
       item.memo || "未配置字段或未填写；可在设置中选择简记字段。",
@@ -140,7 +116,7 @@ export function createDetailDrawer(options: DetailDrawerOptions) {
       })
       .join("\n\n");
     addSection("笔记", noteText || "无普通笔记");
-    const attachments = element(d, "section", "zcl-drawer-section");
+    const attachments = element(d, "section", "zcl-detail-section");
     attachments.append(element(d, "h2", "", "PDF 附件"));
     const select = element(d, "select");
     select.setAttribute("aria-label", "封面与阅读的来源附件");
@@ -171,10 +147,10 @@ export function createDetailDrawer(options: DetailDrawerOptions) {
     );
     open.disabled = !item.attachmentID;
     attachments.append(open);
-    content.append(attachments);
-    const gallery = element(d, "section", "zcl-drawer-section zcl-candidates");
+    tools.append(attachments);
+    const gallery = element(d, "section", "zcl-detail-section zcl-candidates");
     gallery.append(element(d, "h2", "", "封面候选"));
-    content.append(gallery);
+    tools.append(gallery);
     const manual = button(d, "手动框选 PDF 区域", () =>
       options.onManualCrop?.(item),
     );
@@ -218,24 +194,21 @@ export function createDetailDrawer(options: DetailDrawerOptions) {
               "候选图生成失败，请检查附件后重试，或手动框选。";
         });
     }
-    drawer.hidden = false;
+    view.hidden = false;
   };
   function addSection(label: string, value: string) {
-    const section = element(d, "section", "zcl-drawer-section");
+    const section = element(d, "section", "zcl-detail-section");
     section.append(element(d, "h2", "", label), element(d, "p", "", value));
-    content.append(section);
+    metadata.append(section);
   }
   return {
-    element: drawer,
+    element: view,
     show,
     hide,
-    setWidth: width,
     destroy: () => {
       generation++;
-      d.removeEventListener("mousemove", move);
-      d.removeEventListener("mouseup", up);
       d.removeEventListener("keydown", escape);
-      drawer.remove();
+      view.remove();
     },
   };
 }

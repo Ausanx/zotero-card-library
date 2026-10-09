@@ -1,5 +1,6 @@
 import type { LibraryScope } from "../domain/types";
 import { element, button } from "./dom";
+import { icon } from "./icons";
 export type NavigationData = {
   collections: { id: number; name: string }[];
   tags: string[];
@@ -21,20 +22,20 @@ export function renderSidebar(options: SidebarOptions): HTMLElement {
   const sidebar = element(d, "aside", "zcl-sidebar");
   const brand = element(d, "div", "zcl-brand");
   brand.append(
-    element(d, "span", "zcl-brand-mark", "Z"),
+    element(d, "span", "zcl-brand-mark"),
     element(d, "span", "", "文献卡片"),
   );
-  sidebar.append(
-    brand,
-    element(d, "p", "zcl-brand-note", "从一张图，读回一篇文献。"),
-  );
+  brand.firstElementChild!.append(icon(d, "book"));
+  sidebar.append(brand);
   const search = element(d, "input", "zcl-search");
   search.type = "search";
   search.value = options.query;
-  search.placeholder = "搜索文献、作者、简记…";
+  search.placeholder = "搜索文献…";
   search.setAttribute("aria-label", "搜索文献");
   search.addEventListener("input", () => options.onQuery(search.value));
-  sidebar.append(search);
+  const searchField = element(d, "div", "zcl-search-field");
+  searchField.append(icon(d, "search"), search);
+  sidebar.append(searchField);
   const nav = element(d, "nav", "zcl-scope-list");
   nav.setAttribute("aria-label", "文库与合集");
   const add = (label: string, scope: LibraryScope, key: string) => {
@@ -44,9 +45,20 @@ export function renderSidebar(options: SidebarOptions): HTMLElement {
       () => options.onScope(scope),
       `zcl-scope-button${key === options.scope ? " is-active" : ""}`,
     );
+    node.prepend(
+      icon(
+        d,
+        scope.kind === "library"
+          ? "grid"
+          : scope.kind === "collection"
+            ? "folder"
+            : "tag",
+      ),
+    );
     if (key === options.scope) node.setAttribute("aria-current", "page");
     nav.append(node);
   };
+  nav.append(element(d, "div", "zcl-sidebar-heading", "文献库"));
   add("全部文献", { kind: "library" }, "library");
   if (options.navigation.currentCollectionID)
     add(
@@ -75,6 +87,8 @@ export function renderSidebar(options: SidebarOptions): HTMLElement {
       options.onTheme(options.theme === "dark" ? "light" : "dark"),
     ),
   );
+  footer.children[0].prepend(icon(d, "settings"));
+  footer.children[1].prepend(icon(d, "moon"));
   sidebar.append(footer);
   return sidebar;
 }

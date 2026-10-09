@@ -23,6 +23,45 @@ export const paper: PaperDTO = {
 };
 
 describe("card interactions", () => {
+  it("keeps imported short hex and named colors readable", () => {
+    const { document } = new JSDOM().window;
+    for (const color of ["#000", "#000f", "#000000ff", "navy"]) {
+      const card = renderCard(
+        paper,
+        { ...defaultCardState(), colorOverride: color },
+        { document },
+      );
+      assert.equal(card.dataset.tone, "dark", color);
+      assert.equal(card.style.getPropertyValue("--card-ink"), "#ffffff");
+    }
+  });
+  it("keeps text readable on an arbitrary mid-tone card color", () => {
+    const { document } = new JSDOM().window;
+    const card = renderCard(paper, defaultCardState(), {
+      document,
+      color: "#888888",
+    });
+    const channels = card.style
+      .getPropertyValue("--card-ink")
+      .slice(1)
+      .match(/.{2}/g)!
+      .map((channel) => {
+        const value = parseInt(channel, 16) / 255;
+        return value <= 0.04045
+          ? value / 12.92
+          : ((value + 0.055) / 1.055) ** 2.4;
+      });
+    const inkLuminance =
+      channels[0] * 0.2126 + channels[1] * 0.7152 + channels[2] * 0.0722;
+    // #888888 has a hand-checked luminance of 0.2462; small card text needs 4.5:1.
+    const contrast =
+      (Math.max(0.2462, inkLuminance) + 0.05) /
+      (Math.min(0.2462, inkLuminance) + 0.05);
+    assert.ok(
+      contrast >= 4.5,
+      `Card text contrast is ${contrast.toFixed(2)}:1`,
+    );
+  });
   it("keeps button keyboard activation separate from opening details", () => {
     const { window } = new JSDOM();
     const actions: string[] = [];

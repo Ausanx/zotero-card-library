@@ -56,3 +56,13 @@ Final: Ruling: attribution is source-based, not a legal opinion or exhaustive pr
 Final: Ruling: keep feature branch locally — user requested continuation and local completion; no Git remote configured; cost if wrong: user must choose integration/publishing separately.
 
 Final verification: 52/52 unit/DOM tests, lint/build/package checks pass; final native 29/29 assertions pass at .scaffold/zotero-test-1791552246727/result.json. npm audit 0 vulnerabilities.
+
+## 0.1.1 UI revision — 2026-10-09
+
+- User requested EzRead reference styling and a separate detail window on card click; implemented directly on the existing branch.
+- Rebuilt solid cream/blue/green/gray cards with 30 px corners, soft shadows, title above the image, adjacent vertical actions and compact navigation. Existing custom colors and rules take precedence.
+- Replaced the drawer with a reusable native detail window, synchronized themes and preserved cover candidates, manual crop, PDF selection, state controls and cleanup.
+- Independent UI review found two P2 issues: detail failures targeted the main window and short/named colors selected unreadable ink. Both reproduced RED then fixed GREEN. Follow-up checks fixed stale detail color controls after status/rule changes and secondary text contrast on mid-tone colors.
+- Fresh verification: lint, 57/57 unit/DOM tests, build and XPI verification pass. Native acceptance: 43/43 assertions at `.scaffold/zotero-test-1791556516425/result.json`; four screenshots inspected without blocked text or overflowing actions.
+- Environment: SWC default cache ACL rejected binding load; process-level custom native cache resolved it without dependency or ACL changes. Initial headless Zotero exited before driver execution; a fresh profile retry passed.
+- Existing manual boundaries remain: system picker, actual mouse/DPI, real scanned/complex PDFs and future Zotero versions. No local data upload or publishing was performed.

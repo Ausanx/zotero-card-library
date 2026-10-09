@@ -16,6 +16,28 @@ function setup(overrides: Partial<AppControllerOptions> = {}) {
     '<div id="zcl-root"><aside id="zcl-sidebar"></aside><main id="zcl-main"><select id="zcl-sort"><option value="title">Title</option></select><span id="zcl-result-count"></span><div id="zcl-batch"></div><div id="zcl-message"></div><section id="zcl-board"></section></main></div>',
   );
   const state = createDefaultState();
+  const detailWindows: JSDOM[] = [];
+  (dom.window as any).openDialog = () => {
+    const detail = new JSDOM(
+      '<main id="zcl-detail-root"></main><div id="zcl-message"></div>',
+      {
+        url: "chrome://zcl/content/paper-detail.xhtml",
+      },
+    );
+    Object.defineProperty(detail.window.document, "readyState", {
+      value: "complete",
+    });
+    Object.assign(detail.window, {
+      closed: false,
+      focus() {},
+      close() {
+        detail.window.dispatchEvent(new detail.window.Event("unload"));
+        (detail.window as any).closed = true;
+      },
+    });
+    detailWindows.push(detail);
+    return detail.window;
+  };
   state.viewState.scope = "collection:7";
   state.viewState.theme = "dark";
   const saved: string[] = [];
@@ -44,9 +66,44 @@ function setup(overrides: Partial<AppControllerOptions> = {}) {
     }),
     ...overrides,
   } as any);
-  return { dom, state, controller, saved, added };
+  return { dom, state, controller, saved, added, detailWindows };
 }
 describe("card library controller", () => {
+  it("shows detail action failures inside the detail window", async () => {
+    const { dom, controller, detailWindows } = setup({
+      saveState: async () => {
+        throw new Error("Save failed");
+      },
+      library: {
+        list: async () => [paper],
+        get: async () => paper,
+        openPDF: async () => {
+          throw new Error("PDF unavailable");
+        },
+        addToCollection: async () => {},
+      } as any,
+    });
+    try {
+      await controller.start();
+      (dom.window.document.querySelector(".zcl-card") as HTMLElement).click();
+      const dd = detailWindows[0].window.document;
+      (dd.querySelector(".zcl-primary-button") as HTMLElement).click();
+      await tick();
+      assert.match(dd.getElementById("zcl-message")!.textContent!, /操作失败/);
+      dd.getElementById("zcl-message")!.textContent = "";
+      const status = dd.querySelector("select") as HTMLSelectElement;
+      status.value = "read";
+      status.dispatchEvent(new detailWindows[0].window.Event("change"));
+      await tick();
+      assert.match(dd.getElementById("zcl-message")!.textContent!, /操作失败/);
+      assert.equal(
+        dom.window.document.getElementById("zcl-message")!.textContent,
+        "",
+      );
+    } finally {
+      controller.destroy();
+    }
+  });
   it("preserves reader changes arriving while a settings save is pending", async () => {
     let finishSave!: () => void;
     const { dom, controller, state } = setup({
@@ -101,7 +158,7 @@ describe("card library controller", () => {
         { id: 4, label: "New PDF", path: "/new.pdf" },
       ],
     };
-    const { dom, controller, state } = setup({
+    const { dom, controller, state, detailWindows } = setup({
       library: {
         list: async () => [available],
         get: async () => available,
@@ -123,7 +180,7 @@ describe("card library controller", () => {
     try {
       await controller.start();
       (dom.window.document.querySelector(".zcl-card") as HTMLElement).click();
-      const select = dom.window.document.querySelector(
+      const select = detailWindows[0].window.document.querySelector(
         'select[aria-label="封面与阅读的来源附件"]',
       ) as HTMLSelectElement;
       select.value = "4";
@@ -163,7 +220,7 @@ describe("card library controller", () => {
     controller.destroy();
   });
   it("requires an explicit destination for selected items and shows DOI in details", async () => {
-    const { dom, controller, added } = setup();
+    const { dom, controller, added, detailWindows } = setup();
     await controller.start();
     const d = dom.window.document;
     (
@@ -183,10 +240,80 @@ describe("card library controller", () => {
     assert.deepEqual(added, [[1]]);
     (d.querySelector(".zcl-card") as HTMLElement).click();
     assert.match(
-      d.querySelector(".zcl-detail-drawer")!.textContent!,
+      detailWindows[0].window.document.querySelector(".zcl-detail-view")!
+        .textContent!,
       /10.1\/x/,
     );
-    assert.ok(d.getElementById("zcl-root")!.classList.contains("has-detail"));
+    assert.equal(d.querySelector(".zcl-detail-view"), null);
+    assert.equal(
+      d.getElementById("zcl-root")!.classList.contains("has-detail"),
+      false,
+    );
     controller.destroy();
+  });
+  it("reuses an independent detail window, switches papers, and cleans up on close", async () => {
+    const { dom, controller, state, detailWindows } = setup();
+    state.viewState.scope = "library";
+    await controller.start();
+    const cards =
+      dom.window.document.querySelectorAll<HTMLElement>(".zcl-card");
+    cards[0].click();
+    cards[1].click();
+    assert.equal(detailWindows.length, 1);
+    const dd = detailWindows[0].window.document;
+    assert.equal(
+      dd.querySelector(".zcl-detail-title")?.textContent,
+      cards[1].querySelector("h2")?.textContent,
+    );
+    assert.equal(dd.documentElement.dataset.theme, "dark");
+    (dd.querySelector('[aria-label="关闭详情"]') as HTMLElement).click();
+    assert.equal((detailWindows[0].window as any).closed, true);
+    cards[0].click();
+    assert.equal(detailWindows.length, 2);
+    controller.destroy();
+    assert.equal((detailWindows[1].window as any).closed, true);
+  });
+  it("shows the applied rule color in the detail color control", async () => {
+    const { dom, controller, state, detailWindows } = setup();
+    state.colorRules = [
+      { source: "collection", value: "7", color: "navy", priority: 0 },
+    ];
+    await controller.start();
+    (dom.window.document.querySelector(".zcl-card") as HTMLElement).click();
+    assert.equal(
+      (
+        detailWindows[0].window.document.querySelector(
+          'input[type="color"]',
+        ) as HTMLInputElement
+      ).value,
+      "#000080",
+    );
+    controller.destroy();
+  });
+  it("updates the detail color control after changing reading status", async () => {
+    const available = { ...paper, attachmentPath: "/paper.pdf" };
+    const { dom, controller, detailWindows } = setup({
+      library: {
+        list: async () => [available],
+        get: async () => available,
+        openPDF: async () => {},
+        addToCollection: async () => {},
+      } as any,
+    });
+    try {
+      await controller.start();
+      (dom.window.document.querySelector(".zcl-card") as HTMLElement).click();
+      const dd = detailWindows[0].window.document;
+      const status = dd.querySelector("select") as HTMLSelectElement;
+      status.value = "read";
+      status.dispatchEvent(new detailWindows[0].window.Event("change"));
+      await tick();
+      assert.equal(
+        (dd.querySelector('input[type="color"]') as HTMLInputElement).value,
+        "#4d795f",
+      );
+    } finally {
+      controller.destroy();
+    }
   });
 });

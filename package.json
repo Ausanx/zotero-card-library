@@ -1,7 +1,7 @@
 {
   "name": "zotero-card-library",
   "type": "module",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "EzRead-style local card library for Zotero 9",
   "config": {
     "addonName": "Zotero Card Library",
