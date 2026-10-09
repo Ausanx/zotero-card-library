@@ -184,4 +184,3 @@ CoverReference {
 - 无网络时卡片浏览、候选缓存、详情和 PDF 打开不依赖远程服务。
 - 构建产物包含 LICENSE、NOTICE、README、版本号和可追溯源码提交。
 - 现有 Zotero 文献和附件在插件卸载后仍可正常使用。
-

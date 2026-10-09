@@ -38,8 +38,10 @@ type Caption = {
   height: number;
 };
 
-const CAPTION_PATTERN = /(?:^|\s)(?:fig(?:ure)?s?\.?\s*\d+[a-z]?|图\s*\d+[a-z]?)(?:\s*[:.：-]|\s|$)/iu;
-const KEYWORD_PATTERN = /\b(?:overview|framework|architecture|system|pipeline|model|workflow|results?)\b|(?:概览|框架|架构|系统|流程|模型|结果)/iu;
+const CAPTION_PATTERN =
+  /^(?:fig(?:ure)?s?\.?\s*\d+[a-z]?|图\s*\d+[a-z]?)(?:\s*[:.：-]|\s|$)/iu;
+const KEYWORD_PATTERN =
+  /\b(?:overview|framework|architecture|system|pipeline|model|workflow|results?)\b|(?:概览|框架|架构|系统|流程|模型|结果)/iu;
 
 export function findFigureCandidates(
   attachmentID: number,
@@ -54,9 +56,17 @@ export function findFigureCandidates(
       const graphic = nearestGraphic(page, caption);
       if (!graphic) continue;
       const bbox = clampBBox(graphic.bbox, page.width, page.height);
-      if (!isUsefulGraphic(bbox, page.width, page.height, graphic.kind)) continue;
+      if (!isUsefulGraphic(bbox, page.width, page.height, graphic.kind))
+        continue;
       const gap = verticalGap(caption, graphic.bbox);
-      const score = scoreCandidate(caption.text, graphic.kind, gap, bbox, page.width, page.height);
+      const score = scoreCandidate(
+        caption.text,
+        graphic.kind,
+        gap,
+        bbox,
+        page.width,
+        page.height,
+      );
       candidates.push({
         attachmentID,
         page: page.page,
@@ -76,7 +86,7 @@ export class LocalCandidateEngine {
   constructor(private readonly pdf: CoverEngine) {}
 
   async findCandidates(attachmentID: number, mode: "visible-card" | "detail") {
-    const pages = await this.pdf.inspect(attachmentID, mode === "visible-card" ? 12 : undefined);
+    const pages = await this.pdf.inspect(attachmentID);
     return findFigureCandidates(attachmentID, pages);
   }
 }
@@ -93,27 +103,96 @@ function findCaptions(items: PdfTextItem[]): Caption[] {
     .filter((item) => item.text.length > 0 && CAPTION_PATTERN.test(item.text));
 }
 
-function nearestGraphic(page: PdfPageSnapshot, caption: Caption): PdfGraphic | null {
+function nearestGraphic(
+  page: PdfPageSnapshot,
+  caption: Caption,
+): PdfGraphic | null {
+  const peers = findCaptions(page.textItems).filter(
+    (other) => Math.abs(other.y - caption.y) < 60,
+  );
+  const previous = peers
+    .filter((other) => other.x < caption.x)
+    .sort((a, b) => b.x - a.x)[0];
+  const next = peers
+    .filter((other) => other.x > caption.x)
+    .sort((a, b) => a.x - b.x)[0];
+  const leftBound = previous
+    ? (previous.x + previous.width + caption.x) / 2
+    : 0;
+  const rightBound = next
+    ? (caption.x + caption.width + next.x) / 2
+    : page.width;
+  const usable = page.graphics.filter((graphic) => {
+    const center = (graphic.bbox[0] + graphic.bbox[2]) / 2;
+    return (
+      center >= leftBound &&
+      center <= rightBound &&
+      isUsefulGraphic(graphic.bbox, page.width, page.height, graphic.kind)
+    );
+  });
   let best: { graphic: PdfGraphic; distance: number } | null = null;
-  for (const graphic of page.graphics) {
+  for (const graphic of usable) {
     if (!Array.isArray(graphic.bbox) || graphic.bbox.length !== 4) continue;
     if (graphic.kind === "background" || graphic.kind === "noise") continue;
     const distance = graphicDistance(graphic.bbox, caption);
     if (distance > Math.max(page.height * 0.35, 180)) continue;
     if (!best || distance < best.distance) best = { graphic, distance };
   }
-  return best?.graphic || null;
+  if (!best) return null;
+  let bbox = [...best.graphic.bbox] as [number, number, number, number];
+  const included = new Set([best.graphic]);
+  for (let pass = 0; pass < usable.length; pass++) {
+    let grew = false;
+    for (const graphic of usable) {
+      if (included.has(graphic)) continue;
+      const b = graphic.bbox;
+      const dx = Math.max(0, bbox[0] - b[2], b[0] - bbox[2]);
+      const dy = Math.max(0, bbox[1] - b[3], b[1] - bbox[3]);
+      if (
+        dx > Math.min(60, page.width * 0.1) ||
+        dy > 24 ||
+        b[3] > caption.y + 20
+      )
+        continue;
+      bbox = [
+        Math.min(bbox[0], b[0]),
+        Math.min(bbox[1], b[1]),
+        Math.max(bbox[2], b[2]),
+        Math.max(bbox[3], b[3]),
+      ];
+      included.add(graphic);
+      grew = true;
+    }
+    if (!grew) break;
+  }
+  return { bbox, kind: best.graphic.kind };
 }
 
-function graphicDistance(bbox: [number, number, number, number], caption: Caption): number {
+function graphicDistance(
+  bbox: [number, number, number, number],
+  caption: Caption,
+): number {
   const [left, bottom, right, top] = bbox;
   const captionCenter = caption.x + caption.width / 2;
-  const horizontal = captionCenter < left ? left - captionCenter : captionCenter > right ? captionCenter - right : 0;
-  const vertical = caption.y < bottom ? bottom - caption.y : caption.y > top ? caption.y - top : 0;
+  const horizontal =
+    captionCenter < left
+      ? left - captionCenter
+      : captionCenter > right
+        ? captionCenter - right
+        : 0;
+  const vertical =
+    caption.y < bottom
+      ? bottom - caption.y
+      : caption.y > top
+        ? caption.y - top
+        : 0;
   return Math.hypot(horizontal * 0.35, vertical);
 }
 
-function verticalGap(caption: Caption, bbox: [number, number, number, number]): number {
+function verticalGap(
+  caption: Caption,
+  bbox: [number, number, number, number],
+): number {
   if (caption.y < bbox[1]) return bbox[1] - caption.y;
   if (caption.y > bbox[3]) return caption.y - bbox[3];
   return 0;
@@ -133,12 +212,15 @@ function scoreCandidate(
   if (kind === "image") score += 0.35;
   if (kind === "path") score += 0.12;
   score += Math.max(0, 0.2 - gap / Math.max(height, 1));
-  const areaRatio = ((bbox[2] - bbox[0]) * (bbox[3] - bbox[1])) / (width * height);
+  const areaRatio =
+    ((bbox[2] - bbox[0]) * (bbox[3] - bbox[1])) / (width * height);
   score += Math.min(areaRatio, 0.2);
   return Number(score.toFixed(4));
 }
 
-function deduplicateCandidates(candidates: FigureCandidate[]): FigureCandidate[] {
+function deduplicateCandidates(
+  candidates: FigureCandidate[],
+): FigureCandidate[] {
   const seen = new Set<string>();
   return candidates.filter((candidate) => {
     const key = `${candidate.page}:${candidate.bbox.map((value) => value.toFixed(3)).join(",")}`;
@@ -149,7 +231,12 @@ function deduplicateCandidates(candidates: FigureCandidate[]): FigureCandidate[]
 }
 
 function isValidPage(page: PdfPageSnapshot): boolean {
-  return page.width > 0 && page.height > 0 && Number.isFinite(page.width) && Number.isFinite(page.height);
+  return (
+    page.width > 0 &&
+    page.height > 0 &&
+    Number.isFinite(page.width) &&
+    Number.isFinite(page.height)
+  );
 }
 
 function isUsefulGraphic(

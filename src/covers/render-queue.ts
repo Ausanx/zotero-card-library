@@ -27,14 +27,16 @@ export class RenderQueue {
   }
 
   clear(): void {
-    this.queue.length = 0;
+    for (const entry of this.queue.splice(0))
+      entry.reject(new Error("Cover queue closed"));
   }
 
   private drain(): void {
     while (this.active < this.concurrency && this.queue.length) {
       const entry = this.queue.shift()!;
       this.active++;
-      entry.task()
+      entry
+        .task()
         .then((value) => entry.resolve(value))
         .catch((error) => entry.reject(error))
         .finally(() => {

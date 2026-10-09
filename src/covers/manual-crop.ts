@@ -8,7 +8,12 @@ export function normalizeManualCrop(
   pageHeight: number,
   minSize = DEFAULT_MIN_SIZE,
 ): BBox {
-  if (!Number.isFinite(pageWidth) || !Number.isFinite(pageHeight) || pageWidth <= 0 || pageHeight <= 0) {
+  if (
+    !Number.isFinite(pageWidth) ||
+    !Number.isFinite(pageHeight) ||
+    pageWidth <= 0 ||
+    pageHeight <= 0
+  ) {
     throw new Error("Invalid page dimensions");
   }
   if (bbox.some((value) => !Number.isFinite(value))) {
@@ -17,16 +22,29 @@ export function normalizeManualCrop(
   if (bbox[0] >= bbox[2] || bbox[1] >= bbox[3]) {
     throw new Error("Crop coordinates must be ordered");
   }
-  if (bbox[0] < 0 || bbox[1] < 0 || bbox[2] > pageWidth || bbox[3] > pageHeight) {
+  if (
+    bbox[0] < 0 ||
+    bbox[1] < 0 ||
+    bbox[2] > pageWidth ||
+    bbox[3] > pageHeight
+  ) {
     throw new Error("Crop coordinates are outside page bounds");
   }
   return validateNormalizedCrop(
-    [bbox[0] / pageWidth, bbox[1] / pageHeight, bbox[2] / pageWidth, bbox[3] / pageHeight],
+    [
+      bbox[0] / pageWidth,
+      bbox[1] / pageHeight,
+      bbox[2] / pageWidth,
+      bbox[3] / pageHeight,
+    ],
     minSize,
   );
 }
 
-export function validateNormalizedCrop(bbox: BBox, minSize = DEFAULT_MIN_SIZE): BBox {
+export function validateNormalizedCrop(
+  bbox: BBox,
+  minSize = DEFAULT_MIN_SIZE,
+): BBox {
   if (bbox.some((value) => !Number.isFinite(value))) {
     throw new Error("Crop coordinates must be finite");
   }
@@ -42,7 +60,16 @@ export function validateNormalizedCrop(bbox: BBox, minSize = DEFAULT_MIN_SIZE): 
   return bbox;
 }
 
-export function denormalizeCrop(bbox: BBox, pageWidth: number, pageHeight: number): BBox {
+export function denormalizeCrop(
+  bbox: BBox,
+  pageWidth: number,
+  pageHeight: number,
+): BBox {
   validateNormalizedCrop(bbox);
-  return [bbox[0] * pageWidth, bbox[1] * pageHeight, bbox[2] * pageWidth, bbox[3] * pageHeight];
+  return [
+    bbox[0] * pageWidth,
+    bbox[1] * pageHeight,
+    bbox[2] * pageWidth,
+    bbox[3] * pageHeight,
+  ];
 }

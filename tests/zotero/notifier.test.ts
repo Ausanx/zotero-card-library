@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import { describe, it } from "mocha";
-import { registerLibraryNotifier, type NotifierObserver } from "../../src/zotero/notifier";
+import {
+  registerLibraryNotifier,
+  type NotifierObserver,
+} from "../../src/zotero/notifier";
 
 describe("library notifier", () => {
   it("debounces supported changes and unregisters cleanly", async () => {

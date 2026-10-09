@@ -1,0 +1,545 @@
+:root {
+  font-family: Arial, "Microsoft YaHei", sans-serif;
+  font-size: 14px;
+  color: #273b43;
+  background: #f4f7f8;
+}
+* {
+  box-sizing: border-box;
+}
+html,
+body,
+#zcl-root {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+}
+[hidden] {
+  display: none !important;
+}
+button,
+input,
+select {
+  font: inherit;
+  color: inherit;
+}
+button,
+select {
+  cursor: pointer;
+}
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+button,
+input,
+select {
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--surface);
+  padding: 8px 10px;
+}
+button:hover {
+  background: var(--surface-muted);
+}
+:focus-visible {
+  outline: 3px solid #2f7fae;
+  outline-offset: 3px;
+}
+#zcl-root {
+  --surface: #fff;
+  --surface-muted: #edf3f5;
+  --line: #dce5e8;
+  --text-muted: #637a85;
+  --accent: #247d85;
+  display: grid;
+  grid-template-columns: 226px minmax(0, 1fr);
+  overflow: hidden;
+  background: #f4f7f8;
+}
+#zcl-root[data-theme="dark"] {
+  color: #e4eff2;
+  background: #182329;
+  --surface: #22323b;
+  --surface-muted: #2c3d46;
+  --line: #40545e;
+  --text-muted: #abc0c9;
+  --accent: #72cbd0;
+}
+#zcl-root.has-detail {
+  grid-template-columns: 226px minmax(0, 1fr) min(
+      var(--detail-width, 420px),
+      46vw
+    );
+}
+#zcl-sidebar {
+  min-height: 0;
+  min-width: 0;
+}
+.zcl-sidebar {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 26px 17px 18px;
+  border-right: 1px solid var(--line);
+  background: var(--surface);
+  gap: 14px;
+}
+.zcl-brand {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  font-size: 19px;
+  font-weight: bold;
+}
+.zcl-brand-mark {
+  display: grid;
+  place-items: center;
+  width: 33px;
+  height: 33px;
+  border-radius: 10px;
+  background: #328f98;
+  color: #fff;
+}
+.zcl-brand-note {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin: 0 0 12px;
+}
+.zcl-search {
+  width: 100%;
+  min-width: 0;
+  background: var(--surface-muted);
+  font-size: 12px;
+  padding: 11px 9px;
+}
+.zcl-scope-list {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.zcl-scope-button {
+  text-align: left;
+  border: 0;
+  padding: 10px 12px;
+  background: transparent;
+  overflow-wrap: anywhere;
+}
+.zcl-scope-button.is-active {
+  background: color-mix(in srgb, #55bfc4 22%, var(--surface));
+  color: var(--accent);
+  font-weight: bold;
+}
+.zcl-sidebar-heading {
+  color: var(--text-muted);
+  font-size: 11px;
+  padding: 19px 12px 6px;
+}
+.zcl-sidebar-footer {
+  display: grid;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+#zcl-main {
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  container: main / inline-size;
+}
+.zcl-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 30px 28px 20px;
+}
+.zcl-toolbar h1 {
+  margin: 5px 0 8px;
+  font-size: 27px;
+  letter-spacing: 0.03em;
+}
+.zcl-eyebrow {
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  color: var(--text-muted);
+  margin: 0;
+}
+#zcl-result-count {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.zcl-toolbar-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+#zcl-message:not(:empty) {
+  margin: 0 28px 16px;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--accent);
+}
+#zcl-batch {
+  margin: 0 28px 16px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+#zcl-board {
+  columns: 3;
+  column-gap: 20px;
+  padding: 4px 28px 40px;
+}
+.zcl-card {
+  display: inline-block;
+  vertical-align: top;
+  width: 100%;
+  margin: 0 0 20px;
+  break-inside: avoid;
+  border-radius: 17px;
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: 0 4px 16px #243d4910;
+  cursor: pointer;
+  transition: box-shadow 0.15s;
+}
+.zcl-card:hover {
+  box-shadow: 0 8px 24px #243d4924;
+}
+.zcl-card-cover {
+  background: white;
+  min-height: 80px;
+  display: grid;
+  place-items: center;
+  padding: 12px;
+}
+.zcl-card-cover img {
+  display: block;
+  width: 100%;
+  max-height: 330px;
+  object-fit: contain;
+}
+.zcl-card-cover.is-placeholder {
+  min-height: 185px;
+  color: #617b85;
+  background: linear-gradient(130deg, #f1f6f7, #e7f0f1);
+  font-size: 12px;
+}
+.zcl-card-body {
+  padding: 15px 16px;
+  background: color-mix(
+    in srgb,
+    var(--card-accent, #55bfc4) 13%,
+    var(--surface)
+  );
+}
+.zcl-card-top {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 6px;
+}
+.zcl-card-top input {
+  margin: 0;
+  accent-color: #328f98;
+}
+.zcl-card-publication {
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.zcl-card-title {
+  margin: 10px 0 0;
+  font-size: 16px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.zcl-card-authors {
+  margin: 10px 0 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.zcl-card-footer {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 16px;
+}
+.zcl-status-badge {
+  padding: 4px 7px;
+  border-radius: 12px;
+  background: color-mix(in srgb, #55bfc4 20%, var(--surface));
+  color: var(--accent);
+  font-size: 10px;
+}
+.zcl-status-read .zcl-status-badge {
+  background: color-mix(in srgb, #2f7fae 18%, var(--surface));
+}
+.zcl-status-reading .zcl-status-badge {
+  background: color-mix(in srgb, #e5a15a 22%, var(--surface));
+}
+.zcl-icon-button {
+  border: 0;
+  padding: 1px 3px;
+  background: transparent;
+  margin-left: auto;
+  color: #b77934;
+  font-size: 21px;
+}
+.zcl-card-open-pdf {
+  border: 0;
+  padding: 6px 4px;
+  background: transparent;
+  font-size: 10px;
+}
+.zcl-empty {
+  color: var(--text-muted);
+  line-height: 1.8;
+  column-span: all;
+}
+.zcl-primary-button {
+  background: #287e87;
+  color: #fff;
+  border: 0;
+  padding: 10px 13px;
+}
+.zcl-primary-button:hover {
+  background: #236d76;
+}
+.zcl-detail-drawer {
+  position: relative;
+  grid-column: 3;
+  min-width: 0;
+  min-height: 0;
+  max-width: 100%;
+  width: 100% !important;
+  overflow: auto;
+  border-left: 1px solid var(--line);
+  background: var(--surface);
+}
+.zcl-drawer-resize-handle {
+  position: fixed;
+  height: 100vh;
+  width: 8px;
+  cursor: ew-resize;
+  z-index: 3;
+}
+.zcl-drawer-content {
+  padding: 26px 25px 40px;
+  overflow-wrap: anywhere;
+}
+.zcl-drawer-close {
+  float: right;
+  border: 0;
+  font-size: 25px;
+  line-height: 1;
+  padding: 0 5px;
+}
+.zcl-drawer-title {
+  margin: 20px 0 22px;
+  font-size: 21px;
+  line-height: 1.5;
+}
+.zcl-drawer-section {
+  padding: 15px 0;
+  border-top: 1px solid var(--line);
+}
+.zcl-drawer-section h2 {
+  font-size: 11px;
+  font-weight: normal;
+  margin: 0 0 9px;
+  color: var(--text-muted);
+}
+.zcl-drawer-section p {
+  margin: 0;
+  white-space: pre-wrap;
+  line-height: 1.7;
+  font-size: 13px;
+}
+.zcl-drawer-section select {
+  width: 100%;
+  margin-bottom: 10px;
+}
+.zcl-detail-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.zcl-detail-controls label {
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.zcl-detail-controls select {
+  width: auto;
+  margin: 0;
+}
+input[type="color"] {
+  width: 36px;
+  height: 32px;
+  padding: 3px;
+}
+.zcl-detail-controls button {
+  font-size: 11px;
+}
+.zcl-hint {
+  color: var(--text-muted);
+  line-height: 1.6;
+  font-size: 12px;
+}
+.zcl-candidate {
+  display: block;
+  width: 100%;
+  margin: 12px 0 0;
+  padding: 10px;
+}
+.zcl-candidate img {
+  display: block;
+  width: 100%;
+  max-height: 200px;
+  object-fit: contain;
+  background: white;
+}
+.zcl-candidate span {
+  display: block;
+  margin-top: 8px;
+  font-size: 11px;
+  line-height: 1.5;
+  text-align: left;
+}
+.zcl-dialog {
+  --surface: #fff;
+  --surface-muted: #edf3f5;
+  --line: #dce5e8;
+  --text-muted: #637a85;
+  width: min(680px, 90vw);
+  max-height: 90vh;
+  border: 1px solid #dce5e8;
+  border-radius: 18px;
+  padding: 26px;
+  background: #fff;
+  color: #273b43;
+  overflow: auto;
+  box-shadow: 0 20px 70px #0004;
+}
+body:has(#zcl-root[data-theme="dark"]) .zcl-dialog {
+  --surface: #22323b;
+  --surface-muted: #2c3d46;
+  --line: #40545e;
+  --text-muted: #abc0c9;
+  background: #22323b;
+  color: #e4eff2;
+}
+.zcl-dialog::backdrop {
+  background: #14262e70;
+}
+.zcl-dialog h2 {
+  margin-top: 0;
+}
+.zcl-dialog > button {
+  margin: 10px 7px 0 0;
+}
+.zcl-setting {
+  display: grid;
+  gap: 7px;
+  margin: 18px 0;
+}
+.zcl-rule {
+  display: grid;
+  grid-template-columns: 80px minmax(0, 1fr) 40px 55px 55px;
+  gap: 5px;
+  margin: 8px 0;
+}
+.zcl-rule > * {
+  min-width: 0;
+  padding: 6px;
+  font-size: 12px;
+}
+.zcl-crop-stage {
+  position: relative;
+  width: 100%;
+  margin: 14px 0;
+  touch-action: none;
+  user-select: none;
+  background: white;
+}
+.zcl-crop-stage img {
+  display: block;
+  width: 100%;
+}
+.zcl-crop-rectangle {
+  position: absolute;
+  border: 2px solid #d64b4b;
+  background: #55bfc433;
+  pointer-events: none;
+}
+.zcl-crop-coordinates {
+  display: flex;
+  gap: 8px;
+}
+.zcl-crop-coordinates label {
+  flex: 1;
+  font-size: 11px;
+}
+.zcl-crop-coordinates input {
+  width: 100%;
+}
+@container main (min-width:1200px) {
+  #zcl-board {
+    columns: 4;
+  }
+}
+@container main (min-width:1500px) {
+  #zcl-board {
+    columns: 5;
+  }
+}
+@container main (max-width:880px) {
+  #zcl-board {
+    columns: 2;
+  }
+}
+@container main (max-width:480px) {
+  #zcl-board {
+    columns: 1;
+    padding: 4px 18px 30px;
+  }
+  .zcl-toolbar {
+    padding: 24px 18px 16px;
+    flex-wrap: wrap;
+  }
+}
+@media (max-width: 1100px) {
+  #zcl-root {
+    grid-template-columns: 185px minmax(0, 1fr);
+  }
+  #zcl-root.has-detail {
+    grid-template-columns: 185px minmax(0, 1fr) min(
+        var(--detail-width, 420px),
+        42vw
+      );
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+  }
+}

@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>卡片式文献库</title>
+    <link rel="stylesheet" href="chrome://zcl/content/card-library.css" />
+    <script type="module" src="chrome://zcl/content/pdf-host.mjs"></script>
+  </head>
+  <body>
+    <div id="zcl-root" data-theme="light">
+      <div id="zcl-sidebar"></div>
+      <main id="zcl-main">
+        <header class="zcl-toolbar">
+          <div>
+            <p class="zcl-eyebrow">ZOTERO CARD LIBRARY</p>
+            <h1>我的文献</h1>
+            <span id="zcl-result-count">加载中…</span>
+          </div>
+          <div class="zcl-toolbar-actions">
+            <button id="zcl-refresh" type="button" aria-label="刷新文献">
+              刷新
+            </button>
+            <select id="zcl-sort" aria-label="排序">
+              <option value="recently-added">最近添加</option>
+              <option value="recently-opened">最近打开</option>
+              <option value="year">发表年份</option>
+              <option value="title">标题</option>
+              <option value="author">作者</option>
+            </select>
+          </div>
+        </header>
+        <div id="zcl-message" role="status"></div>
+        <div id="zcl-batch" hidden="hidden"></div>
+        <section id="zcl-board" aria-label="文献卡片"></section>
+      </main>
+    </div>
+  </body>
+</html>

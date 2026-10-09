@@ -6,7 +6,12 @@ import { RenderQueue } from "../../src/covers/render-queue";
 describe("cover rendering support", () => {
   it("keys cached regions by attachment fingerprint and invalidates stale entries", () => {
     const cache = createCoverCache();
-    const key = { attachmentID: 4, fingerprint: "a", page: 1, bbox: [0, 0, 1, 1] as [number, number, number, number] };
+    const key = {
+      attachmentID: 4,
+      fingerprint: "a",
+      page: 1,
+      bbox: [0, 0, 1, 1] as [number, number, number, number],
+    };
     cache.set(key, "data:image/png;base64,a");
     assert.equal(cache.get(key), "data:image/png;base64,a");
     assert.equal(cache.get({ ...key, fingerprint: "b" }), null);
@@ -29,7 +34,11 @@ describe("cover rendering support", () => {
       order.push("visible");
       return "visible";
     }, 10);
-    assert.deepEqual(await Promise.all([first, background, visible]), ["first", "background", "visible"]);
+    assert.deepEqual(await Promise.all([first, background, visible]), [
+      "first",
+      "background",
+      "visible",
+    ]);
     assert.deepEqual(order, ["first", "visible", "background"]);
   });
 });

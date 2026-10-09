@@ -1,0 +1,478 @@
+import type { PaperDTO } from "../domain/metadata";
+import { searchPapers, sortPapers } from "../domain/search";
+import type { CardState, PluginState } from "../domain/types";
+import { defaultCardState, importBackup } from "../data/state-store";
+import type { LibraryAdapter } from "../zotero/library-adapter";
+import type { CoverService, CoverResult } from "../covers/cover-service";
+import { renderBoard } from "./card-board";
+import { createDetailDrawer } from "./detail-drawer";
+import { renderSidebar, type NavigationData } from "./sidebar";
+import { openCropEditor } from "./crop-editor";
+import { openSettings } from "./settings-panel";
+import { element, button, option } from "./dom";
+export type AppControllerOptions = {
+  document: Document;
+  library: LibraryAdapter;
+  state: PluginState;
+  saveState(state: PluginState): Promise<void>;
+  covers?: CoverService;
+  navigation?: () => Promise<NavigationData>;
+  exportBackup?: () => Promise<void>;
+  importBackup?: () => Promise<PluginState | null>;
+};
+export class AppController {
+  private readonly root: HTMLElement;
+  private readonly board: HTMLElement;
+  private readonly main: HTMLElement;
+  private readonly drawer: ReturnType<typeof createDetailDrawer>;
+  private items: PaperDTO[] = [];
+  private navigation: NavigationData = { collections: [], tags: [] };
+  private selection = new Set<number>();
+  private coverURLs = new Map<number, string>();
+  private pendingCovers = new Set<number>();
+  private observer?: IntersectionObserver;
+  private queryTimer?: ReturnType<typeof setTimeout>;
+  private scrollTimer?: ReturnType<typeof setTimeout>;
+  private disposed = false;
+  private generation = 0;
+  private detailID: number | null = null;
+  private readonly cleanups: (() => void)[] = [];
+  constructor(private readonly options: AppControllerOptions) {
+    const d = options.document;
+    this.root = d.getElementById("zcl-root") as HTMLElement;
+    this.board = d.getElementById("zcl-board") as HTMLElement;
+    this.main = d.getElementById("zcl-main") as HTMLElement;
+    if (!this.root || !this.board || !this.main)
+      throw new Error("Card library root is missing");
+    this.drawer = createDetailDrawer({
+      document: d,
+      width: options.state.windowState.detailWidth,
+      onClose: () => {
+        this.detailID = null;
+        this.root.classList.remove("has-detail");
+      },
+      onWidth: (width) => {
+        this.root.style.setProperty("--detail-width", `${width}px`);
+        options.state.windowState.detailWidth = width;
+        this.run(() => this.persist());
+      },
+      onOpenPDF: (item) => this.run(() => this.openPDF(item)),
+      onState: (item, patch) => this.run(() => this.updateCard(item, patch)),
+      onAttachment: (item, id) =>
+        this.run(async () => {
+          await this.updateCard(item, {
+            selectedAttachmentID: id,
+            cover: null,
+          });
+          this.coverURLs.delete(item.itemID);
+          this.render();
+          this.showDetail(item.itemID);
+        }),
+      candidates: options.covers
+        ? (item) => options.covers!.getCandidates(item.attachmentID!)
+        : undefined,
+      onCandidate: (item, candidate) =>
+        this.run(async () =>
+          this.applyCover(
+            item,
+            await options.covers!.choose(
+              candidate.attachmentID,
+              candidate.page,
+              candidate.bbox,
+              "candidate",
+            ),
+          ),
+        ),
+      onManualCrop: (item) => {
+        if (options.covers && item.attachmentID)
+          openCropEditor(d, options.covers, item.attachmentID, (cover) =>
+            this.applyCover(item, cover),
+          );
+      },
+    });
+    this.root.append(this.drawer.element);
+    this.root.style.setProperty(
+      "--detail-width",
+      `${options.state.windowState.detailWidth}px`,
+    );
+  }
+  async start(): Promise<void> {
+    const sort = this.options.document.getElementById(
+      "zcl-sort",
+    ) as HTMLSelectElement | null;
+    if (sort) {
+      sort.value = this.options.state.viewState.sort;
+      this.listen(sort, "change", () => {
+        this.options.state.viewState.sort = sort.value;
+        this.render();
+        this.run(() => this.persist());
+      });
+    }
+    this.listen(this.main, "scroll", () => {
+      this.options.state.viewState.scrollTop = this.main.scrollTop;
+      clearTimeout(this.scrollTimer);
+      this.scrollTimer = setTimeout(() => this.run(() => this.persist()), 200);
+    });
+    const refresh = this.options.document.getElementById("zcl-refresh");
+    if (refresh)
+      this.listen(refresh, "click", () => this.run(() => this.refresh()));
+    this.listen(this.board, "click", (event) => {
+      if (event.target === this.board) this.drawer.hide();
+    });
+    await this.refresh();
+    this.main.scrollTop = this.options.state.viewState.scrollTop;
+  }
+  async refresh(): Promise<void> {
+    const generation = ++this.generation;
+    const [items, navigation] = await Promise.all([
+      this.options.library.list({ kind: "library" }),
+      this.options.navigation?.(),
+    ]);
+    if (this.disposed || generation !== this.generation) return;
+    this.items = items;
+    this.navigation = navigation || {
+      collections: [],
+      tags: [...new Set(items.flatMap((i) => i.tags))],
+    };
+    if (this.options.state.viewState.scope === "current")
+      this.options.state.viewState.scope = this.navigation.currentCollectionID
+        ? `collection:${this.navigation.currentCollectionID}`
+        : "library";
+    this.selection = new Set(
+      [...this.selection].filter((id) => items.some((i) => i.itemID === id)),
+    );
+    this.coverURLs.clear();
+    this.renderSidebar();
+    this.render();
+    if (this.detailID) this.showDetail(this.detailID);
+  }
+  destroy(): void {
+    if (this.disposed) return;
+    this.disposed = true;
+    this.generation++;
+    clearTimeout(this.queryTimer);
+    clearTimeout(this.scrollTimer);
+    this.observer?.disconnect();
+    this.drawer.destroy();
+    this.options.document
+      .querySelectorAll("dialog")
+      .forEach((dialog: Element) => dialog.remove());
+    this.cleanups.forEach((fn) => fn());
+  }
+  private listen(
+    target: EventTarget,
+    type: string,
+    listener: EventListener,
+  ): void {
+    target.addEventListener(type, listener);
+    this.cleanups.push(() => target.removeEventListener(type, listener));
+  }
+  private run(action: () => Promise<unknown>): void {
+    void action().catch(() =>
+      this.message("操作失败，请检查本地文件和保存权限后重试。"),
+    );
+  }
+  private message(text: string): void {
+    const node = this.options.document.getElementById("zcl-message");
+    if (node) node.textContent = text;
+  }
+  private renderSidebar(): void {
+    const state = this.options.state;
+    this.root.dataset.theme = state.viewState.theme;
+    const sidebar = renderSidebar({
+      document: this.options.document,
+      navigation: this.navigation,
+      scope: state.viewState.scope,
+      query: state.viewState.query,
+      theme: state.viewState.theme,
+      onScope: (scope) => {
+        state.viewState.scope =
+          scope.kind === "library"
+            ? "library"
+            : scope.kind === "tag"
+              ? `tag:${scope.tag}`
+              : `collection:${scope.collectionID}`;
+        this.selection.clear();
+        this.renderSidebar();
+        this.render();
+        this.main.scrollTop = 0;
+        this.run(() => this.persist());
+      },
+      onQuery: (query) => {
+        state.viewState.query = query;
+        clearTimeout(this.queryTimer);
+        this.queryTimer = setTimeout(() => {
+          if (!this.disposed) {
+            this.render();
+            this.run(() => this.persist());
+          }
+        }, 120);
+      },
+      onTheme: (theme) => {
+        state.viewState.theme = theme;
+        this.renderSidebar();
+        this.run(() => this.persist());
+      },
+      onSettings: () =>
+        openSettings(this.options.document, state, this.navigation, {
+          save: (next) => this.replaceState(next),
+          export: this.options.exportBackup,
+          import: this.options.importBackup,
+        }),
+    });
+    this.options.document
+      .getElementById("zcl-sidebar")
+      ?.replaceChildren(sidebar);
+  }
+  private displayed(item: PaperDTO): PaperDTO {
+    const selected =
+      this.options.state.items[item.itemID]?.selectedAttachmentID;
+    const attachment = selected
+      ? item.attachments.find((a) => a.id === selected)
+      : undefined;
+    return attachment
+      ? {
+          ...item,
+          attachmentID: attachment.id,
+          attachmentPath: attachment.path,
+        }
+      : item;
+  }
+  private render(): void {
+    if (this.disposed) return;
+    const view = this.options.state.viewState;
+    let items = this.items;
+    if (view.scope.startsWith("collection:"))
+      items = items.filter((i) =>
+        i.collectionIDs?.includes(Number(view.scope.slice(11))),
+      );
+    if (view.scope.startsWith("tag:"))
+      items = items.filter((i) => i.tags.includes(view.scope.slice(4)));
+    const visible = sortPapers(searchPapers(items, view.query), view.sort).map(
+      (item) => this.displayed(item),
+    );
+    renderBoard(this.board, visible, this.options.state.items, {
+      document: this.options.document,
+      covers: this.coverURLs,
+      selection: this.selection,
+      colorRules: this.options.state.colorRules,
+      onAction: (action, item) => {
+        if (action === "open-detail" || action === "change-cover")
+          this.showDetail(item.itemID);
+        else if (action === "toggle-favorite")
+          this.run(() =>
+            this.updateCard(item, {
+              favorite: !this.cardState(item.itemID).favorite,
+            }),
+          );
+        else if (action === "open-pdf") this.run(() => this.openPDF(item));
+      },
+      onSelect: (item, selected) => {
+        if (selected) this.selection.add(item.itemID);
+        else this.selection.delete(item.itemID);
+        this.renderBatch();
+      },
+    });
+    if (!visible.length)
+      this.board.append(
+        element(
+          this.options.document,
+          "p",
+          "zcl-empty",
+          "没有匹配的文献。试试其他关键词或切换合集。",
+        ),
+      );
+    const count = this.options.document.getElementById("zcl-result-count");
+    if (count) count.textContent = `${visible.length} 篇文献`;
+    this.renderBatch();
+    this.observeCovers(visible);
+  }
+  private observeCovers(items: PaperDTO[]): void {
+    this.observer?.disconnect();
+    const Observer = this.options.document.defaultView?.IntersectionObserver;
+    if (!this.options.covers) return;
+    if (Observer) {
+      this.observer = new Observer(
+        (entries: IntersectionObserverEntry[]) => {
+          for (const entry of entries)
+            if (entry.isIntersecting) {
+              const item = items.find(
+                (i) =>
+                  String(i.itemID) ===
+                  (entry.target as HTMLElement).dataset.itemId,
+              );
+              if (item) this.ensureCover(item);
+              this.observer?.unobserve(entry.target);
+            }
+        },
+        { root: this.main, rootMargin: "200px" },
+      );
+      this.board
+        .querySelectorAll(".zcl-card")
+        .forEach((card: Element) => this.observer!.observe(card));
+    } else items.forEach((item) => this.ensureCover(item));
+  }
+  private ensureCover(item: PaperDTO): void {
+    if (
+      !item.attachmentID ||
+      !item.attachmentPath ||
+      this.coverURLs.has(item.itemID) ||
+      this.pendingCovers.has(item.itemID)
+    )
+      return;
+    this.pendingCovers.add(item.itemID);
+    const reference = this.cardState(item.itemID).cover;
+    void this.options
+      .covers!.getCover(item.attachmentID, reference)
+      .then(async (cover) => {
+        if (this.disposed) return;
+        const current = this.items.find((i) => i.itemID === item.itemID);
+        if (
+          !current ||
+          this.displayed(current).attachmentID !== item.attachmentID ||
+          this.cardState(item.itemID).cover !== reference
+        )
+          return;
+        this.coverURLs.set(item.itemID, cover.url);
+        this.cardState(item.itemID).cover = cover.reference;
+        const target = this.board.querySelector<HTMLElement>(
+          `[data-item-id="${item.itemID}"] .zcl-card-cover`,
+        );
+        if (target) {
+          const image = element(this.options.document, "img");
+          image.src = cover.url;
+          image.alt = `${item.title} 文献图片`;
+          target.replaceChildren(image);
+          target.classList.remove("is-placeholder");
+        }
+        await this.persist();
+      })
+      .catch(() => {
+        if (!this.disposed) {
+          const target = this.board.querySelector(
+            `[data-item-id="${item.itemID}"] .zcl-card-cover`,
+          );
+          if (target) target.textContent = "封面生成失败，可在详情中重试";
+        }
+      })
+      .finally(() => this.pendingCovers.delete(item.itemID));
+  }
+  private renderBatch(): void {
+    const d = this.options.document;
+    const bar = d.getElementById("zcl-batch") as HTMLElement | null;
+    if (!bar) return;
+    bar.replaceChildren();
+    bar.hidden = !this.selection.size;
+    if (!this.selection.size) return;
+    const select = element(d, "select");
+    select.setAttribute("aria-label", "加入目标合集");
+    select.append(option(d, "", "选择目标合集"));
+    for (const c of this.navigation.collections)
+      select.append(option(d, String(c.id), c.name));
+    const apply = button(
+      d,
+      "加入合集",
+      () =>
+        this.run(async () => {
+          apply.disabled = true;
+          try {
+            await this.options.library.addToCollection(
+              [...this.selection],
+              Number(select.value),
+            );
+            this.selection.clear();
+            await this.refresh();
+            this.message("已加入所选合集。");
+          } finally {
+            apply.disabled = !select.value;
+          }
+        }),
+      "zcl-primary-button",
+    );
+    apply.dataset.action = "add-to-collection";
+    apply.disabled = true;
+    select.addEventListener("change", () => (apply.disabled = !select.value));
+    bar.append(
+      element(d, "span", "", `已选择 ${this.selection.size} 篇`),
+      select,
+      apply,
+      button(d, "取消选择", () => {
+        this.selection.clear();
+        this.render();
+      }),
+    );
+  }
+  private showDetail(id: number): void {
+    const item = this.items.find((i) => i.itemID === id);
+    if (!item) {
+      this.drawer.hide();
+      return;
+    }
+    this.detailID = id;
+    this.root.classList.add("has-detail");
+    this.drawer.show(this.displayed(item), this.cardState(id));
+  }
+  private async updateCard(
+    item: PaperDTO,
+    patch: Partial<CardState>,
+  ): Promise<void> {
+    Object.assign(this.cardState(item.itemID), patch, {
+      updatedAt: Date.now(),
+    });
+    await this.persist();
+    this.render();
+  }
+  private async applyCover(item: PaperDTO, cover: CoverResult): Promise<void> {
+    const current = this.items.find((i) => i.itemID === item.itemID);
+    if (
+      !current ||
+      this.displayed(current).attachmentID !== cover.reference.attachmentID
+    )
+      return;
+    this.coverURLs.set(item.itemID, cover.url);
+    await this.updateCard(item, { cover: cover.reference });
+  }
+  private async openPDF(item: PaperDTO): Promise<void> {
+    if (!item.attachmentID) return;
+    await this.options.library.openPDF(item.itemID, item.attachmentID);
+    const state = this.cardState(item.itemID);
+    if (state.readingStatus === "unread") state.readingStatus = "reading";
+    state.updatedAt = Date.now();
+    await this.persist();
+    this.render();
+    if (this.detailID === item.itemID) this.showDetail(item.itemID);
+  }
+  private cardState(id: number): CardState {
+    return (this.options.state.items[id] ||= defaultCardState());
+  }
+  private persist(): Promise<void> {
+    return this.options.saveState(this.options.state);
+  }
+  private async replaceState(next: PluginState): Promise<void> {
+    const valid = importBackup(next);
+    await this.options.saveState(valid);
+    Object.assign(this.options.state, valid);
+    this.selection.clear();
+    this.root.style.setProperty(
+      "--detail-width",
+      `${valid.windowState.detailWidth}px`,
+    );
+    this.drawer.setWidth(valid.windowState.detailWidth);
+    const sort = this.options.document.getElementById(
+      "zcl-sort",
+    ) as HTMLSelectElement | null;
+    if (sort) sort.value = valid.viewState.sort;
+    await this.refresh();
+    this.main.scrollTop = valid.viewState.scrollTop;
+  }
+}
+export async function mountCardLibraryWindow(
+  document: Document,
+  library: LibraryAdapter,
+  state: PluginState,
+  saveState: (state: PluginState) => Promise<void>,
+): Promise<AppController> {
+  const controller = new AppController({ document, library, state, saveState });
+  await controller.start();
+  return controller;
+}

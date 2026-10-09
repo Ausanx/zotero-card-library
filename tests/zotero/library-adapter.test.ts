@@ -39,7 +39,8 @@ describe("library adapter", () => {
     const item = {
       id: 1,
       isRegularItem: () => true,
-      getField: (field: string) => (field === "title" ? "Paper" : field === "shortTitle" ? "A memo" : ""),
+      getField: (field: string) =>
+        field === "title" ? "Paper" : field === "shortTitle" ? "A memo" : "",
       getAttachments: () => [],
     };
     const zotero = {

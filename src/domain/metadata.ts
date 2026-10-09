@@ -28,6 +28,8 @@ export type RawPaper = {
   fields: Record<string, string | undefined>;
   attachments: RawAttachment[];
   attachmentLastRead?: number | null;
+  collectionIDs?: number[];
+  dateAdded?: string;
 };
 
 export type PaperAttachment = {
@@ -51,6 +53,8 @@ export type PaperDTO = {
   attachmentPath: string | null;
   attachments: PaperAttachment[];
   lastRead: number | null;
+  collectionIDs?: number[];
+  dateAdded?: string;
 };
 
 export type { LibraryScope };
@@ -90,7 +94,10 @@ export function normalizePaper(
     itemID: paper.id,
     title: paper.title?.trim() || "Untitled",
     authors: (paper.creators || [])
-      .filter((creator) => creator.creatorType === undefined || creator.creatorType === "author")
+      .filter(
+        (creator) =>
+          creator.creatorType === undefined || creator.creatorType === "author",
+      )
       .map(formatCreator)
       .filter(Boolean),
     publication: paper.publicationTitle?.trim() || "",
@@ -104,6 +111,8 @@ export function normalizePaper(
     attachmentPath: primary?.path || null,
     attachments,
     lastRead: paper.attachmentLastRead ?? null,
+    collectionIDs: paper.collectionIDs || [],
+    dateAdded: paper.dateAdded || "",
   };
 }
 

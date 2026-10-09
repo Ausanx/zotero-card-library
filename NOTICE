@@ -1,0 +1,30 @@
+Zotero Card Library — third-party notices
+
+Original runtime implementation and newly created icons:
+Copyright (c) 2026 Zotero Card Library contributors. MIT License (LICENSE).
+
+The project was initialized using windingwind/zotero-plugin-template.
+Source: https://github.com/windingwind/zotero-plugin-template
+License: AGPL-3.0-or-later. The remaining adapted development files
+zotero-plugin.config.ts, eslint.config.mjs, and .env.example retain that
+license. The original license is preserved in licenses/template-AGPL-3.0.txt.
+Template runtime modules, UI, and icons have been replaced; template runtime
+code is not bundled into the plugin. Original source files in src/ and addon/
+are governed by the MIT license.
+
+Development dependencies (not bundled into the XPI runtime):
+- zotero-plugin-scaffold and @zotero-plugin/eslint-config: AGPL-3.0-or-later,
+  https://github.com/zotero-plugin-dev
+- zotero-types: MIT, https://github.com/windingwind/zotero-types
+- JSZip: MIT OR GPL-3.0-or-later; used under MIT for local packaging/testing,
+  https://github.com/Stuk/jszip
+Other dependency license texts are available in their installed npm packages.
+
+Runtime dependencies supplied by the user's Zotero installation:
+- Zotero: AGPL-3.0-or-later, https://github.com/zotero/zotero
+- Mozilla PDF.js: Apache-2.0, https://github.com/mozilla/pdf.js
+The plugin references Zotero's installed PDF.js modules; it does not copy or
+redistribute those modules. Their own license terms continue to apply.
+
+EzRead: https://github.com/zhuangcao136-glitch/EzRead
+UI design inspiration only; no source code, styles, or assets copied.

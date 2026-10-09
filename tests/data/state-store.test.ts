@@ -31,6 +31,59 @@ class MemoryIO implements StateIO {
 }
 
 describe("state store", () => {
+  it("serializes overlapping writes and snapshots state at the call boundary", async () => {
+    const io = new MemoryIO();
+    const state = createDefaultState();
+    const first = saveState(io, "state.json", state);
+    state.viewState.query = "new query";
+    const second = saveState(io, "state.json", state);
+    await Promise.all([first, second]);
+    assert.equal(
+      (await loadState(io, "state.json")).viewState.query,
+      "new query",
+    );
+  });
+  it("rejects invalid card records, coordinates and future versions before import", () => {
+    for (const items of [
+      { bad: {} },
+      { 1: { favorite: "yes" } },
+      {
+        1: {
+          favorite: false,
+          readingStatus: "read",
+          colorOverride: null,
+          updatedAt: 0,
+          cover: {
+            attachmentID: 2,
+            source: "manual",
+            page: 1,
+            bbox: [0, 0, 2, 1],
+            cacheKey: "",
+          },
+        },
+      },
+    ]) {
+      assert.throws(
+        () => importBackup({ ...createDefaultState(), items }),
+        /invalid/i,
+      );
+    }
+  });
+  it("preserves a corrupt file and refuses to silently replace future state", async () => {
+    const io = new MemoryIO();
+    io.files.set("state.json", "{broken");
+    await loadState(io, "state.json");
+    assert.ok(
+      [...io.files.keys()].some((key) => key.startsWith("state.json.corrupt-")),
+    );
+    io.files.set("state.json", '{"schemaVersion":99}');
+    await assert.rejects(loadState(io, "state.json"), /unsupported/i);
+  });
+  it("migrates version zero and gives old layouts a light theme", () => {
+    const migrated = importBackup({ schemaVersion: 0, items: {} });
+    assert.equal(migrated.schemaVersion, 1);
+    assert.equal(migrated.viewState.theme, "light");
+  });
   it("creates a complete default state when the file is missing", async () => {
     const io = new MemoryIO();
     const state = await loadState(io, "state.json");

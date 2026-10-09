@@ -14,7 +14,8 @@ export async function readAttachment(
   const contentType =
     attachment.attachmentContentType || safeField(attachment, "contentType");
   const isPDF =
-    contentType === "application/pdf" || attachment.isPDFAttachment?.() === true;
+    contentType === "application/pdf" ||
+    attachment.isPDFAttachment?.() === true;
   let path: string | null = null;
   if (isPDF && attachment.getFilePathAsync) {
     try {

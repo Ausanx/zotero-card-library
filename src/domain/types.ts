@@ -16,6 +16,7 @@ export type CardState = {
   colorOverride: string | null;
   cover: CoverReference | null;
   updatedAt: number;
+  selectedAttachmentID?: number;
 };
 
 export type ColorRule = {
@@ -47,5 +48,6 @@ export type PluginState = {
     query: string;
     sort: string;
     scrollTop: number;
+    theme: "light" | "dark";
   };
 };

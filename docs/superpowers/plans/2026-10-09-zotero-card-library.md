@@ -106,7 +106,13 @@ type PluginState = {
   items: Record<number, CardState>;
   colorRules: ColorRule[];
   fieldMapping: { memoField: string | null };
-  windowState: { x?: number; y?: number; width: number; height: number; detailWidth: number };
+  windowState: {
+    x?: number;
+    y?: number;
+    width: number;
+    height: number;
+    detailWidth: number;
+  };
   viewState: { scope: string; query: string; sort: string; scrollTop: number };
 };
 ```
@@ -145,7 +151,10 @@ type PluginState = {
 **Interfaces:**
 
 ```ts
-type LibraryScope = { kind: "library" } | { kind: "collection"; collectionID: number } | { kind: "tag"; tag: string };
+type LibraryScope =
+  | { kind: "library" }
+  | { kind: "collection"; collectionID: number }
+  | { kind: "tag"; tag: string };
 type PaperDTO = {
   itemID: number;
   title: string;
@@ -209,8 +218,15 @@ type FigureCandidate = {
   previewPath: string | null;
 };
 interface CoverEngine {
-  findCandidates(attachmentID: number, mode: "visible-card" | "detail"): Promise<FigureCandidate[]>;
-  renderRegion(attachmentID: number, page: number, bbox: [number, number, number, number]): Promise<string>;
+  findCandidates(
+    attachmentID: number,
+    mode: "visible-card" | "detail",
+  ): Promise<FigureCandidate[]>;
+  renderRegion(
+    attachmentID: number,
+    page: number,
+    bbox: [number, number, number, number],
+  ): Promise<string>;
   renderFirstPage(attachmentID: number): Promise<string>;
 }
 ```
@@ -250,8 +266,17 @@ interface CoverEngine {
 **Interfaces:**
 
 ```ts
-type BoardViewState = { scope: LibraryScope; query: string; sort: string; scrollTop: number };
-type CardAction = "toggle-favorite" | "open-detail" | "change-cover" | "open-pdf";
+type BoardViewState = {
+  scope: LibraryScope;
+  query: string;
+  sort: string;
+  scrollTop: number;
+};
+type CardAction =
+  | "toggle-favorite"
+  | "open-detail"
+  | "change-cover"
+  | "open-pdf";
 function renderBoard(items: PaperDTO[], state: BoardViewState): void;
 function renderCard(item: PaperDTO, cardState: CardState): HTMLElement;
 ```
@@ -297,8 +322,15 @@ function renderCard(item: PaperDTO, cardState: CardState): HTMLElement;
 
 ```ts
 function searchPapers(items: PaperDTO[], query: string): PaperDTO[];
-function resolveColor(item: PaperDTO, state: CardState, rules: ColorRule[]): string;
-function transitionReadingStatus(current: ReadingStatus, event: "pdf-opened" | "mark-read" | "mark-unread"): ReadingStatus;
+function resolveColor(
+  item: PaperDTO,
+  state: CardState,
+  rules: ColorRule[],
+): string;
+function transitionReadingStatus(
+  current: ReadingStatus,
+  event: "pdf-opened" | "mark-read" | "mark-unread",
+): ReadingStatus;
 ```
 
 - [ ] **Step 1: Write search, color, and status tests.**
@@ -372,4 +404,3 @@ function transitionReadingStatus(current: ReadingStatus, event: "pdf-opened" | "
 Run Tasks 1–4 first because the UI depends on stable DTOs, state, attachment selection, and cover references. Run Tasks 5–6 after the data and cover interfaces pass tests. Run Task 7 only after the full UI works in a clean Zotero 9.0.6 profile.
 
 The plan deliberately keeps the first release as one plugin subsystem. The cover engine, state store, and UI are separate units with typed boundaries, but they ship together because none is useful to the user without the card window.
-

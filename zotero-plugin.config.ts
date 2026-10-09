@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Adapted from windingwind/zotero-plugin-template; see NOTICE.
 import { defineConfig } from "zotero-plugin-scaffold";
 import pkg from "./package.json";
 
@@ -7,11 +9,12 @@ export default defineConfig({
   name: pkg.config.addonName,
   id: pkg.config.addonID,
   namespace: pkg.config.addonRef,
-  updateURL: `https://github.com/{{owner}}/{{repo}}/releases/download/release/${
-    pkg.version.includes("-") ? "update-beta.json" : "update.json"
-  }`,
+  updateURL:
+    process.env.ZCL_UPDATE_URL ||
+    "https://example.invalid/zotero-card-library/update.json",
   xpiDownloadLink:
-    "https://github.com/{{owner}}/{{repo}}/releases/download/v{{version}}/{{xpiName}}.xpi",
+    process.env.ZCL_XPI_DOWNLOAD_URL ||
+    "https://example.invalid/zotero-card-library/{{xpiName}}.xpi",
 
   build: {
     assets: ["addon/**/*.*"],
@@ -19,7 +22,6 @@ export default defineConfig({
       ...pkg.config,
       author: pkg.author,
       description: pkg.description,
-      homepage: pkg.homepage,
       buildVersion: pkg.version,
       buildTime: "{{buildTime}}",
     },

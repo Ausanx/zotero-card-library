@@ -19,7 +19,11 @@ export function createCoverCache(): CoverCache {
     set: (key, value) => values.set(serializeKey(key), value),
     invalidateAttachment: (attachmentID, fingerprint) => {
       for (const key of values.keys()) {
-        if (key.startsWith(`${attachmentID}:`) && (!fingerprint || key.startsWith(`${attachmentID}:${fingerprint}:`))) values.delete(key);
+        if (
+          key.startsWith(`${attachmentID}:`) &&
+          (!fingerprint || key.startsWith(`${attachmentID}:${fingerprint}:`))
+        )
+          values.delete(key);
       }
     },
     clear: () => values.clear(),

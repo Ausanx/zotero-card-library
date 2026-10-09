@@ -47,9 +47,9 @@ describe("paper metadata", () => {
       attachmentID: 19,
       attachmentPath: "C:/paper.pdf",
       lastRead: 123,
-      attachments: [
-        { id: 19, label: "paper.pdf", path: "C:/paper.pdf" },
-      ],
+      collectionIDs: [],
+      dateAdded: "",
+      attachments: [{ id: 19, label: "paper.pdf", path: "C:/paper.pdf" }],
     });
   });
 
@@ -57,7 +57,12 @@ describe("paper metadata", () => {
     const attachments = [
       { id: 30, contentType: "text/plain", path: "notes.txt" },
       { id: 22, contentType: "application/pdf", path: "preprint.pdf" },
-      { id: 25, contentType: "application/pdf", path: "published.pdf", isPrimary: true },
+      {
+        id: 25,
+        contentType: "application/pdf",
+        path: "published.pdf",
+        isPrimary: true,
+      },
     ];
     assert.equal(selectPrimaryAttachment(attachments)?.id, 25);
     assert.equal(selectPrimaryAttachment(attachments.slice(0, 2))?.id, 22);
