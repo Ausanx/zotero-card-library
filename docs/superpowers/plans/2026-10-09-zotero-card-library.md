@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build an open-source Zotero 9.0.6 plugin that opens a local EzRead-style card library window backed by Zotero metadata and PDF attachments.
+**Goal:** Build an open-source Zotero 9.0.6 plugin that opens a local reference-image-style card library window backed by Zotero metadata and PDF attachments.
 
 **Architecture:** A bootstrapped Zotero plugin owns a separate card-library window. A read-only Zotero adapter produces normalized item DTOs; a versioned local JSON store holds card-only state; a pure JavaScript/PDF.js cover pipeline creates and caches Figure candidates; the UI renders a responsive waterfall board and a resizable detail drawer.
 
@@ -19,7 +19,7 @@
 - Store favorites, reading status, cover references, color overrides, and layout state in the plugin-owned local JSON store.
 - Use PDF.js text coordinates and local geometric rules for cover candidates; fall back to the PDF first page only when no candidate exists.
 - Default UI language is Simplified Chinese; provide light and dark themes, with light as the default.
-- Publish source under MIT and preserve attribution for any copied EzRead code or styles.
+- Publish source under MIT and document that the interface only borrows the supplied reference image's visual style.
 
 ## Review Focus
 
@@ -375,11 +375,11 @@ function transitionReadingStatus(
 
 - [ ] **Step 3: Document the open-source contract.**
 
-  README must include installation from XPI, local development, Zotero 9.0.6 support, privacy behavior, state-file location, backup instructions, known Figure-detection limits, EzRead attribution, and troubleshooting for missing attachments. Development docs must explain the test profile and build commands.
+  README must include installation from XPI, local development, Zotero 9.0.6 support, privacy behavior, state-file location, backup instructions, known Figure-detection limits, the reference-image UI boundary, and troubleshooting for missing attachments. Development docs must explain the test profile and build commands.
 
 - [ ] **Step 4: Add license and dependency audit.**
 
-  Keep plugin source MIT. Record the licenses of the scaffold, Zotero types, PDF.js runtime, and any copied EzRead material in `NOTICE`; do not copy AGPL scaffold source into the plugin runtime without documenting its license implications.
+  Keep plugin source MIT. Record the licenses of the scaffold, Zotero types, and PDF.js runtime in `NOTICE`; do not copy AGPL scaffold source into the plugin runtime without documenting its license implications.
 
 - [ ] **Step 5: Run the release checks.**
 

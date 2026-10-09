@@ -26,5 +26,5 @@ Runtime dependencies supplied by the user's Zotero installation:
 The plugin references Zotero's installed PDF.js modules; it does not copy or
 redistribute those modules. Their own license terms continue to apply.
 
-EzRead: https://github.com/zhuangcao136-glitch/EzRead
-UI design inspiration only; no source code, styles, or assets copied.
+The interface takes visual inspiration from a user-provided reference image.
+No third-party source code, styles, or assets were copied.
