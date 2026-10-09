@@ -42,3 +42,17 @@ Task 5: complete (48 unit/DOM tests, native singleton and card/drawer/theme/layo
 Task 6: complete (search/colors/status/actions/crop/backup and real native collection transaction verified; original title/tags/annotations preserved).
 Task 7: complete (npm run lint:check, npm test 48/48, build + verify:package pass; npm audit 0 vulnerabilities; native 29 assertions passed). Native result: .scaffold/zotero-test-1791551537154/result.json.
 Task 7: Ruling: headless file import uses injected file adapter and drag uses keyboard/coordinate controls — system picker, actual mouse/DPI and real scanned/multi-page literature remain manual release checks documented in docs/VERIFICATION.md; cost if wrong: local trial remains unverified on those paths.
+
+Final review: independent read-only reviewer final_review reviewed d0761e3..3f22075; 0 Critical, 3 Important, 1 Minor.
+Final: fixed future schema overwrite on failed startup/shutdown — tests/bootstrap/addon.test.ts RED→GREEN.
+Final: fixed attachment switch while prior cover pending — tests/ui/app-controller.test.ts RED→GREEN.
+Final: fixed settings snapshot rolling back Reader changes, including async-save interval — tests/ui/settings-panel.test.ts and app-controller.test.ts RED→GREEN. Full suite 52/52; lint/build/package pass.
+Final: minor (deferred): Zotero getCreators() supplies creatorTypeID; editor/translator roles may appear as authors. Use getCreatorsJSON() in a future change.
+Final: Ruling: native file-picker and actual mouse/DPI paths remain manual — injected validated backup and coordinate/keyboard interactions cover core behavior; cost if wrong: platform-specific interaction defects may remain in this trial.
+Final: Ruling: real scanned/complex multi-page papers remain unverified — rule extraction has documented limits and manual crop fallback; cost if wrong: more papers need manual covers.
+Final: Ruling: future Zotero upgrades and large real PDF libraries remain unverified — target is installed 9.0.6 and 238 synthetic records; cost if wrong: compatibility/performance needs a follow-up.
+Final: Ruling: actual release/update endpoints and market review remain unverified — no owner/repository or publishing request provided; cost if wrong: current XPI uses manual updates only.
+Final: Ruling: attribution is source-based, not a legal opinion or exhaustive provenance audit — preserved upstream license/config and independently implemented runtime; cost if wrong: maintainer must revisit notices before public distribution.
+Final: Ruling: keep feature branch locally — user requested continuation and local completion; no Git remote configured; cost if wrong: user must choose integration/publishing separately.
+
+Final verification: 52/52 unit/DOM tests, lint/build/package checks pass; final native 29/29 assertions pass at .scaffold/zotero-test-1791552246727/result.json. npm audit 0 vulnerabilities.

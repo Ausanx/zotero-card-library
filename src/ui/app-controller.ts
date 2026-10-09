@@ -215,7 +215,7 @@ export class AppController {
       },
       onSettings: () =>
         openSettings(this.options.document, state, this.navigation, {
-          save: (next) => this.replaceState(next),
+          save: (next, settingsOnly) => this.replaceState(next, settingsOnly),
           export: this.options.exportBackup,
           import: this.options.importBackup,
         }),
@@ -355,7 +355,20 @@ export class AppController {
           if (target) target.textContent = "封面生成失败，可在详情中重试";
         }
       })
-      .finally(() => this.pendingCovers.delete(item.itemID));
+      .finally(() => {
+        this.pendingCovers.delete(item.itemID);
+        const current = this.items.find((i) => i.itemID === item.itemID);
+        if (
+          !this.disposed &&
+          current &&
+          !this.coverURLs.has(item.itemID) &&
+          (this.displayed(current).attachmentID !== item.attachmentID ||
+            this.cardState(item.itemID).cover !== reference) &&
+          this.board.querySelector(`[data-item-id="${item.itemID}"]`)
+        ) {
+          this.ensureCover(this.displayed(current));
+        }
+      });
   }
   private renderBatch(): void {
     const d = this.options.document;
@@ -448,8 +461,19 @@ export class AppController {
   private persist(): Promise<void> {
     return this.options.saveState(this.options.state);
   }
-  private async replaceState(next: PluginState): Promise<void> {
+  private async replaceState(
+    next: PluginState,
+    settingsOnly = false,
+  ): Promise<void> {
     const valid = importBackup(next);
+    if (settingsOnly) {
+      this.options.state.viewState.theme = valid.viewState.theme;
+      this.options.state.fieldMapping = valid.fieldMapping;
+      this.options.state.colorRules = valid.colorRules;
+      await this.persist();
+      await this.refresh();
+      return;
+    }
     await this.options.saveState(valid);
     Object.assign(this.options.state, valid);
     this.selection.clear();

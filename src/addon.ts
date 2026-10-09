@@ -65,7 +65,7 @@ class Addon {
     this.manager.close();
     this.controller?.destroy();
     this.covers?.dispose();
-    await this.persist();
+    if (this.data.initialized) await this.persist();
   }
   private persist(): Promise<void> {
     return saveState(this.io, getStatePath(), this.state);

@@ -7,7 +7,7 @@ export function openSettings(
   state: PluginState,
   navigation: NavigationData,
   actions: {
-    save(next: PluginState): Promise<void>;
+    save(next: PluginState, settingsOnly?: boolean): Promise<void>;
     export?(): Promise<void>;
     import?(): Promise<PluginState | null>;
   },
@@ -138,7 +138,11 @@ export function openSettings(
           draft.viewState.theme = theme.value as "light" | "dark";
           draft.fieldMapping.memoField = memo.value.trim() || null;
           draft.colorRules.forEach((rule, index) => (rule.priority = index));
-          await actions.save(importBackup(draft));
+          const next = importBackup(state);
+          next.viewState.theme = draft.viewState.theme;
+          next.fieldMapping = draft.fieldMapping;
+          next.colorRules = draft.colorRules;
+          await actions.save(importBackup(next), true);
           dialog.close();
         }),
       "zcl-primary-button",
