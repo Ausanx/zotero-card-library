@@ -102,10 +102,7 @@ export function createDetailView(options: DetailViewOptions) {
       ),
     );
     tools.append(controls);
-    addSection(
-      "简记",
-      item.memo || "未配置字段或未填写；可在设置中选择简记字段。",
-    );
+    addSection("简记", item.memo || "未填写简记；可在设置中指定其他来源字段。");
     addSection("摘要", item.abstract || "未填写");
     addSection("标签", item.tags.join("、") || "无标签");
     const noteText = item.notes
@@ -157,42 +154,53 @@ export function createDetailView(options: DetailViewOptions) {
     manual.disabled = !item.attachmentPath;
     gallery.append(manual);
     if (item.attachmentPath && options.candidates) {
-      const message = element(d, "p", "zcl-hint", "正在查找正文图片…");
-      gallery.append(message);
-      void options
-        .candidates(item)
-        .then((candidates) => {
-          if (own !== generation) return;
-          message.textContent = candidates.length
-            ? "点击候选图设为封面。"
-            : "没有找到可靠候选，当前使用首页；也可以手动框选。";
-          for (const candidate of candidates) {
-            const pick = button(
-              d,
-              "",
-              () => options.onCandidate?.(item, candidate),
-              "zcl-candidate",
-            );
-            const image = element(d, "img");
-            image.src = candidate.previewPath || "";
-            image.alt = candidate.caption;
-            pick.append(
-              image,
-              element(
+      const message = element(
+        d,
+        "p",
+        "zcl-hint",
+        "需要更换封面时，再加载候选图。",
+      );
+      const load = button(d, "加载候选图", () => {
+        load.disabled = true;
+        message.textContent = "正在查找正文图片…";
+        void options.candidates!(item)
+          .then((candidates) => {
+            if (own !== generation) return;
+            message.textContent = candidates.length
+              ? "点击候选图设为封面。"
+              : "没有找到可靠候选，当前使用首页；也可以手动框选。";
+            for (const candidate of candidates) {
+              const pick = button(
                 d,
-                "span",
                 "",
-                `第 ${candidate.page} 页 · ${candidate.caption}`,
-              ),
-            );
-            gallery.append(pick);
-          }
-        })
-        .catch(() => {
-          if (own === generation)
-            message.textContent =
-              "候选图生成失败，请检查附件后重试，或手动框选。";
-        });
+                () => options.onCandidate?.(item, candidate),
+                "zcl-candidate",
+              );
+              const image = element(d, "img");
+              image.src = candidate.previewPath || "";
+              image.alt = candidate.caption;
+              pick.append(
+                image,
+                element(
+                  d,
+                  "span",
+                  "",
+                  `第 ${candidate.page} 页 · ${candidate.caption}`,
+                ),
+              );
+              gallery.append(pick);
+            }
+          })
+          .catch(() => {
+            if (own === generation) {
+              load.disabled = false;
+              message.textContent =
+                "候选图生成失败，请检查附件后重试，或手动框选。";
+            }
+          });
+      });
+      load.dataset.action = "load-candidates";
+      gallery.append(load, message);
     }
     view.hidden = false;
   };

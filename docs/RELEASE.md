@@ -1,6 +1,6 @@
 # 发布流程
 
-当前 0.1.1 为本地试用包，发布仓库和插件市场尚未配置。
+当前 0.1.2 为本地试用包，发布仓库和插件市场尚未配置。
 
 1. 运行 `npm ci`、`npm run lint:check`、`npm test`、`npm run build`、`npm run verify:package`。
 2. 用 Zotero 9.0.6 运行 `npm run test:zotero`，检查离线验收结果和截图。

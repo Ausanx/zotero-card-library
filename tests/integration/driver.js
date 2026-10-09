@@ -66,7 +66,7 @@ async function runAcceptance() {
       );
       item.setField(
         "extra",
-        "用于验收的简记：卡片窗口保留完整的文献浏览上下文。",
+        "remark: 自动识别的简记：卡片窗口保留完整的文献浏览上下文。\nCitation Key: fixture",
       );
       item.setCreators([
         { firstName: "Ada", lastName: "Lovelace", creatorType: "author" },
@@ -76,6 +76,13 @@ async function runAcceptance() {
       await item.saveTx();
       if (i < 6) targets.push(item);
     }
+    const legacyRemark = new Zotero.Item("note");
+    legacyRemark.parentID = targets[1].id;
+    legacyRemark.setNote("<p>旧版简记 &amp; 正文</p><p>第二行</p>");
+    legacyRemark.addTag("remark");
+    await legacyRemark.saveTx();
+    targets[1].setField("extra", "Citation Key: legacy-fixture");
+    await targets[1].saveTx();
     const paths = __FIXTURE_PATHS__;
     const attachments = [];
     for (let i = 0; i < 6; i++) {
@@ -139,6 +146,10 @@ async function runAcceptance() {
       await wait(100);
     const coverCount = d.querySelectorAll(".zcl-card-cover img").length;
     assert(coverCount === 5, `five local PDF covers rendered (${coverCount})`);
+    assert(
+      window.zclPDF.GlobalWorkerOptions.workerPort instanceof window.Worker,
+      "PDF parsing uses a real background Worker",
+    );
     const card = (id) => d.querySelector(`[data-item-id="${id}"]`);
     assert(
       card(targets[3].id).textContent.includes("不可用"),
@@ -151,11 +162,33 @@ async function runAcceptance() {
     const detailWindow = Zotero.ZoteroCardLibrary.controller.detailWindow;
     for (
       let i = 0;
-      i < 200 && !detailWindow.document.querySelector(".zcl-candidate");
+      i < 200 && !detailWindow.document.querySelector(".zcl-detail-title");
       i++
     )
       await wait(100);
     const dd = detailWindow.document;
+    assert(
+      !dd.querySelector(".zcl-candidate") &&
+        dd.querySelector('[data-action="load-candidates"]'),
+      "detail metadata opens without generating candidate previews",
+    );
+    assert(
+      dd
+        .querySelector(".zcl-detail-metadata")
+        .textContent.includes("自动识别的简记"),
+      "Style Extra remark appears without field configuration",
+    );
+    card(targets[1].id).click();
+    assert(
+      dd
+        .querySelector(".zcl-detail-metadata")
+        .textContent.includes("旧版简记 & 正文\n第二行"),
+      "legacy remark-tagged notes preserve text and decode HTML entities",
+    );
+    card(targets[0].id).click();
+    dd.querySelector('[data-action="load-candidates"]').click();
+    for (let i = 0; i < 200 && !dd.querySelector(".zcl-candidate"); i++)
+      await wait(100);
     assert(
       detailWindow !== window && !detailWindow.closed,
       "card opens a separate native detail window",

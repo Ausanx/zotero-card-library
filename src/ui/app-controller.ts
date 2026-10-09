@@ -5,7 +5,7 @@ import { defaultCardState, importBackup } from "../data/state-store";
 import type { LibraryAdapter } from "../zotero/library-adapter";
 import type { CoverService, CoverResult } from "../covers/cover-service";
 import { renderBoard } from "./card-board";
-import { resolveCardColor } from "./card-view";
+import { renderCard, resolveCardColor, type CardAction } from "./card-view";
 import { resolveColor } from "../domain/color-rules";
 import { createDetailView } from "./detail-view";
 import { WindowManager } from "../window/window-manager";
@@ -290,28 +290,12 @@ export class AppController {
     const visible = sortPapers(searchPapers(items, view.query), view.sort).map(
       (item) => this.displayed(item),
     );
-    renderBoard(this.board, visible, this.options.state.items, {
-      document: this.options.document,
-      covers: this.coverURLs,
-      selection: this.selection,
-      colorRules: this.options.state.colorRules,
-      onAction: (action, item) => {
-        if (action === "open-detail" || action === "change-cover")
-          this.showDetail(item.itemID);
-        else if (action === "toggle-favorite")
-          this.run(() =>
-            this.updateCard(item, {
-              favorite: !this.cardState(item.itemID).favorite,
-            }),
-          );
-        else if (action === "open-pdf") this.run(() => this.openPDF(item));
-      },
-      onSelect: (item, selected) => {
-        if (selected) this.selection.add(item.itemID);
-        else this.selection.delete(item.itemID);
-        this.renderBatch();
-      },
-    });
+    renderBoard(
+      this.board,
+      visible,
+      this.options.state.items,
+      this.boardOptions(),
+    );
     if (!visible.length)
       this.board.append(
         element(
@@ -325,6 +309,46 @@ export class AppController {
     if (count) count.textContent = `${visible.length} 篇文献`;
     this.renderBatch();
     this.observeCovers(visible);
+  }
+  private boardOptions() {
+    return {
+      document: this.options.document,
+      covers: this.coverURLs,
+      selection: this.selection,
+      colorRules: this.options.state.colorRules,
+      onAction: (action: CardAction, item: PaperDTO) => {
+        if (action === "open-detail" || action === "change-cover")
+          this.showDetail(item.itemID);
+        else if (action === "toggle-favorite")
+          this.run(() =>
+            this.updateCard(item, {
+              favorite: !this.cardState(item.itemID).favorite,
+            }),
+          );
+        else if (action === "open-pdf") this.run(() => this.openPDF(item));
+      },
+      onSelect: (item: PaperDTO, selected: boolean) => {
+        if (selected) this.selection.add(item.itemID);
+        else this.selection.delete(item.itemID);
+        this.renderBatch();
+      },
+    };
+  }
+  private renderItem(id: number): void {
+    const current = this.items.find((item) => item.itemID === id);
+    const node = this.board.querySelector(`[data-item-id="${id}"]`);
+    if (!current || !node) return;
+    const item = this.displayed(current);
+    const state = this.cardState(id);
+    const card = renderCard(item, state, {
+      ...this.boardOptions(),
+      coverUrl: this.coverURLs.get(id),
+      selected: this.selection.has(id),
+      color: resolveColor(item, state, this.options.state.colorRules),
+    });
+    this.observer?.unobserve(node);
+    node.replaceWith(card);
+    this.observer?.observe(card);
   }
   private observeCovers(items: PaperDTO[]): void {
     this.observer?.disconnect();
@@ -504,7 +528,7 @@ export class AppController {
       updatedAt: Date.now(),
     });
     await this.persist();
-    this.render();
+    this.renderItem(item.itemID);
   }
   private async applyCover(item: PaperDTO, cover: CoverResult): Promise<void> {
     const current = this.items.find((i) => i.itemID === item.itemID);
@@ -523,7 +547,7 @@ export class AppController {
     if (state.readingStatus === "unread") state.readingStatus = "reading";
     state.updatedAt = Date.now();
     await this.persist();
-    this.render();
+    this.renderItem(item.itemID);
     if (this.detailID === item.itemID) this.refreshDetail();
   }
   private cardState(id: number): CardState {

@@ -69,6 +69,31 @@ function setup(overrides: Partial<AppControllerOptions> = {}) {
   return { dom, state, controller, saved, added, detailWindows };
 }
 describe("card library controller", () => {
+  it("changes one card without replacing other cards or their focus", async () => {
+    const { dom, controller, state } = setup();
+    state.viewState.scope = "library";
+    try {
+      await controller.start();
+      const other = dom.window.document.querySelector(
+        '[data-item-id="2"]',
+      ) as HTMLElement;
+      other.focus();
+      (
+        dom.window.document.querySelector(
+          '[data-item-id="1"] [data-action="toggle-favorite"]',
+        ) as HTMLElement
+      ).click();
+      await tick();
+      assert.equal(
+        dom.window.document.querySelector('[data-item-id="2"]'),
+        other,
+      );
+      assert.equal(dom.window.document.activeElement, other);
+      assert.equal(state.items[1].favorite, true);
+    } finally {
+      controller.destroy();
+    }
+  });
   it("shows detail action failures inside the detail window", async () => {
     const { dom, controller, detailWindows } = setup({
       saveState: async () => {

@@ -3,6 +3,63 @@ import { describe, it } from "mocha";
 import { createLibraryAdapter } from "../../src/zotero/library-adapter";
 
 describe("library adapter", () => {
+  it("automatically reads Style remarks in Extra and falls back to tagged notes", async () => {
+    const items = [
+      {
+        id: 1,
+        extra: "Citation Key: Example\nremark: DVS: 经典架构\nDOI: 10.1/x",
+        notes: [11],
+      },
+      { id: 2, extra: "Citation Key: Other", notes: [12] },
+      { id: 3, extra: "DOI: 10.1/z", notes: [13] },
+    ].map(({ id, extra, notes }) => ({
+      id,
+      isRegularItem: () => true,
+      getField: (field: string) =>
+        field === "extra"
+          ? extra
+          : field === "shortTitle"
+            ? "Explicit memo"
+            : "",
+      getNotes: () => notes,
+    }));
+    const notes = new Map([
+      [
+        11,
+        {
+          getTags: () => [{ tag: "remark" }],
+          getNote: () => "<p>Old memo</p>",
+        },
+      ],
+      [
+        12,
+        {
+          getTags: () => [{ tag: "remark" }],
+          getNote: () => "<div><p>Legacy memo</p><p>Second line</p></div>",
+        },
+      ],
+      [13, { getTags: () => [], getNote: () => "<p>Ordinary note</p>" }],
+    ]);
+    const zotero = {
+      Libraries: { userLibraryID: 1 },
+      Items: { getAll: () => items, get: (id: number) => notes.get(id) },
+      Utilities: {
+        unescapeHTML: (html: string) => html.replace(/<[^>]*>/g, ""),
+      },
+    };
+    const adapter = createLibraryAdapter(zotero as any);
+    assert.deepEqual(
+      (await adapter.list({ kind: "library" })).map((i) => i.memo),
+      ["DVS: 经典架构", "Legacy memo\nSecond line", ""],
+    );
+    const explicit = createLibraryAdapter(zotero as any, {
+      memoField: "shortTitle",
+    });
+    assert.equal(
+      (await explicit.list({ kind: "library" }))[0].memo,
+      "Explicit memo",
+    );
+  });
   it("lists regular library items and opens their primary PDF", async () => {
     const opened: number[] = [];
     const attachment = {

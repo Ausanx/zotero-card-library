@@ -1,3 +1,16 @@
+# 0.1.2 验证记录
+
+2026-10-10，Windows，本机 Zotero 9.0.6，独立 headless profile，238 条合成文献及本地合成 PDF。
+
+- `npm test`：61 项纯逻辑 / DOM 测试通过。新增回归测试先复现简记漏读、详情自动生成候选、命中封面缓存仍打开 PDF，以及单卡操作重建其他卡片的问题，再验证修复。
+- `npm run lint:check`：Prettier、ESLint 通过。
+- `npm run build`、`npm run verify:package`：类型检查及 XPI 校验通过。
+- `npm run test:zotero`：47 项原生验收断言通过；结果目录 `.scaffold/zotero-test-1791562504959/`。
+
+新增原生验收确认 PDF.js 使用真实后台 Worker，详情元数据可以独立于候选图生成显示，Extra 中的 `remark:` 和旧版带 `remark` 标签的子笔记无需字段映射即可读取。子笔记 HTML 实体正确解码并保留段落换行。既有封面、手动裁剪、附件切换、主题和窗口生命周期验收通过。
+
+已人工查看主窗口和详情截图，简记、按需加载候选按钮和卡片布局显示正常。性能结论依据任务线程、缓存和重绘行为的回归验证；尚未测量用户真实复杂 PDF 库的滚动帧率或点击延迟，首次生成封面仍需处理 PDF。
+
 # 0.1.1 验证记录
 
 2026-10-09，Windows，本机 Zotero 9.0.6，独立 headless profile，238 条合成文献及本地合成 PDF。没有访问真实用户文献库。

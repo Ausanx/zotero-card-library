@@ -2,6 +2,38 @@ import assert from "node:assert/strict";
 import { describe, it } from "mocha";
 import { CoverService } from "../../src/covers/cover-service";
 describe("cover service", () => {
+  it("restores a cached cover after reopening without opening the PDF", async () => {
+    const cache = new Map<string, string>();
+    const options = {
+      pdf: {
+        inspect: async () => [],
+        renderRegion: async () => "cached-image",
+        renderFirstPage: async () => "cached-image",
+      },
+      fingerprint: async () => "unchanged",
+      pageCount: async () => 1,
+      cache: {
+        read: async (key: string) => cache.get(key) || null,
+        write: async (key: string, value: string) => {
+          cache.set(key, value);
+        },
+      },
+    };
+    const first = new CoverService(options);
+    const cover = await first.getCover(3, null);
+    first.dispose();
+    const reopened = new CoverService({
+      ...options,
+      pageCount: async () => {
+        throw new Error("PDF opened on a cache hit");
+      },
+    });
+    assert.equal(
+      (await reopened.getCover(3, cover.reference)).url,
+      "cached-image",
+    );
+    reopened.dispose();
+  });
   it("chooses an internal figure, reuses cached renders and invalidates on fingerprint changes", async () => {
     let stamp = "1",
       renders = 0;

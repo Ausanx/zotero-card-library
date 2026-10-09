@@ -140,15 +140,13 @@ export class CoverService {
     source: CoverSource,
   ): Promise<CoverResult> {
     validateNormalizedCrop(bbox);
-    if (
-      !Number.isInteger(page) ||
-      page < 1 ||
-      page > (await this.options.pageCount(id))
-    )
+    if (!Number.isInteger(page) || page < 1)
       throw new Error("Invalid PDF page");
     const cacheKey = `region-v2:${id}:${stamp}:${page}:${bbox.map((n) => n.toFixed(5)).join(",")}`;
     let url = await this.read(cacheKey);
     if (!url) {
+      if (page > (await this.options.pageCount(id)))
+        throw new Error("Invalid PDF page");
       url = await this.options.pdf.renderRegion(id, page, bbox);
       await this.write(cacheKey, url);
     }

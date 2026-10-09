@@ -31,7 +31,7 @@ export function openSettings(
   );
   const memo = element(document, "input");
   memo.value = state.fieldMapping.memoField || "";
-  memo.placeholder = "留空不映射，例如 extra / shortTitle";
+  memo.placeholder = "留空自动识别简记；也可填 extra / shortTitle";
   memoLabel.append(memo);
   dialog.append(
     themeLabel,
@@ -40,7 +40,7 @@ export function openSettings(
       document,
       "p",
       "zcl-hint",
-      "普通笔记始终在详情中显示。请确认简记实际所在字段，再填写字段键。",
+      "默认自动识别 Style 简记（Extra 中的 remark 或带 remark 标签的笔记）。填写字段键可覆盖自动识别。普通笔记仍在详情中显示。",
     ),
     element(document, "h3", "", "颜色规则"),
     element(

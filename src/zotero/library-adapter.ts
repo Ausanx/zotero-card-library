@@ -46,6 +46,7 @@ export type ZoteroFacade = {
       options?: Record<string, unknown>,
     ) => Promise<unknown>;
   };
+  Utilities?: { unescapeHTML(text: string): string };
   DB?: { executeTransaction: (fn: () => Promise<void>) => Promise<void> };
 };
 
@@ -138,7 +139,30 @@ async function normalizeItem(
 ): Promise<PaperDTO> {
   const raw = await rawPaper(zotero, item);
   if (memoField) raw.fields[memoField] = safeField(item, memoField);
-  return normalizePaper(raw, memoField);
+  const paper = normalizePaper(raw, memoField);
+  if (!memoField || memoField === "remark") {
+    // Style stores remarks in Extra, with older versions using a tagged note.
+    const remark = raw.fields.extra
+      ?.split(/\r?\n/)
+      .map((line) => line.match(/^\s*remark\s*:\s*(.*)$/i)?.[1]?.trim())
+      .find(Boolean);
+    const note = (item.getNotes?.() || [])
+      .map(
+        (id) =>
+          zotero.Items.get(id) as
+            | (ZoteroItemLike & { getNote?: () => string })
+            | null,
+      )
+      .find((note) => note?.getTags?.().some((tag) => tag.tag === "remark"));
+    const text = (remark || note?.getNote?.() || "").replace(
+      /<br\s*\/?\s*>|<\/p>/gi,
+      "\n",
+    );
+    paper.memo = (
+      zotero.Utilities?.unescapeHTML(text) || text.replace(/<[^>]*>/g, "")
+    ).trim();
+  }
+  return paper;
 }
 
 async function rawPaper(
