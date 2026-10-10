@@ -2,6 +2,20 @@
 
 为 Zotero 9.0.6 提供独立的卡片式文献库。界面借鉴参考图中的卡片布局、色彩组织和信息层级：整块色卡、圆角瀑布流、图片与按钮并排、紧凑侧栏，以及独立文献详情窗口。Zotero 仍负责文献管理和原生 PDF 阅读；本插件的功能与参考产品不同。
 
+## 界面预览
+
+![浅色主题下的卡片式文献库，显示合集侧栏、论文封面和阅读状态](docs/images/library-light.png)
+
+_主界面：按合集或标签浏览文献，在卡片上查看封面、阅读状态并打开 PDF。_
+
+![独立文献详情窗口，显示简记、摘要、附件和封面操作](docs/images/paper-detail.png)
+
+_点击卡片后，文献详情在独立窗口打开；主界面仍可继续浏览。_
+
+![深色主题下的卡片式文献库](docs/images/library-dark.png)
+
+_深色主题沿用相同的卡片布局与状态色。以上截图均来自本地合成文献库，不包含用户文献。_
+
 ## 安装
 
 1. 从 [GitHub Releases](https://github.com/Ausanx/zotero-card-library/releases) 下载 `zotero-card-library.xpi`，或自行构建。
