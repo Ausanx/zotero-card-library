@@ -302,6 +302,7 @@ async function runAcceptance() {
     sidebar.find((n) => n.textContent.includes("深色")).click();
     await wait(200);
     const originalTitle = targets[0].getField("title");
+    const unaffectedCard = card(targets[1].id);
     targets[0].setField("title", "Updated title after Zotero notifier");
     await targets[0].saveTx();
     for (
@@ -313,6 +314,10 @@ async function runAcceptance() {
     assert(
       card(targets[0].id).textContent.includes("Updated title"),
       "Zotero item edits refresh card metadata",
+    );
+    assert(
+      card(targets[1].id) === unaffectedCard,
+      "Zotero item edits preserve unrelated card nodes",
     );
     targets[0].setField("title", originalTitle);
     await targets[0].saveTx();
@@ -392,7 +397,7 @@ async function runAcceptance() {
     controller.options.state.colorRules = [
       { source: "tag", value: "传感材料", color: "navy", priority: 0 },
     ];
-    await controller.refresh();
+    await controller.refresh(false);
     assert(
       dd.querySelector('input[type="color"]').value === "#000080" &&
         card(targets[0].id).dataset.tone === "dark",
@@ -418,7 +423,7 @@ async function runAcceptance() {
       "restoring rule color refreshes the detail control",
     );
     controller.options.state.colorRules = [];
-    await controller.refresh();
+    await controller.refresh(false);
     const openPDF = controller.options.library.openPDF;
     controller.options.library.openPDF = async () => {
       throw new Error("Acceptance: PDF unavailable");

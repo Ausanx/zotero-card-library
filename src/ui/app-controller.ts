@@ -34,6 +34,7 @@ export class AppController {
   private selection = new Set<number>();
   private coverURLs = new Map<number, string>();
   private pendingCovers = new Set<number>();
+  private pendingRefreshIDs = new Set<number>();
   private observer?: IntersectionObserver;
   private queryTimer?: ReturnType<typeof setTimeout>;
   private scrollTimer?: ReturnType<typeof setTimeout>;
@@ -148,28 +149,109 @@ export class AppController {
     await this.refresh();
     this.main.scrollTop = this.options.state.viewState.scrollTop;
   }
-  async refresh(): Promise<void> {
+  async refresh(reuseCards = true): Promise<void> {
     const generation = ++this.generation;
     const [items, navigation] = await Promise.all([
       this.options.library.list({ kind: "library" }),
       this.options.navigation?.(),
     ]);
     if (this.disposed || generation !== this.generation) return;
+    const previous = new Map(this.items.map((item) => [item.itemID, item]));
+    const reuse = new Set<number>();
+    const currentIDs = new Set(items.map((item) => item.itemID));
+    for (const item of items) {
+      const old = previous.get(item.itemID);
+      if (old && reuseCards && JSON.stringify(old) === JSON.stringify(item))
+        reuse.add(item.itemID);
+      if (
+        !old ||
+        old.attachmentID !== item.attachmentID ||
+        old.attachmentPath !== item.attachmentPath
+      )
+        this.coverURLs.delete(item.itemID);
+    }
+    for (const id of previous.keys())
+      if (!currentIDs.has(id)) this.coverURLs.delete(id);
     this.items = items;
-    this.navigation = navigation || {
+    this.pendingRefreshIDs.clear();
+    const nextNavigation = navigation || {
       collections: [],
       tags: [...new Set(items.flatMap((i) => i.tags))],
     };
+    const navigationChanged =
+      JSON.stringify(this.navigation) !== JSON.stringify(nextNavigation);
+    this.navigation = nextNavigation;
     if (this.options.state.viewState.scope === "current")
       this.options.state.viewState.scope = this.navigation.currentCollectionID
         ? `collection:${this.navigation.currentCollectionID}`
         : "library";
     this.selection = new Set(
-      [...this.selection].filter((id) => items.some((i) => i.itemID === id)),
+      [...this.selection].filter((id) => currentIDs.has(id)),
     );
-    this.coverURLs.clear();
-    this.renderSidebar();
-    this.render();
+    if (navigationChanged || !this.root.querySelector(".zcl-sidebar"))
+      this.renderSidebar();
+    this.render(reuseCards ? reuse : undefined);
+    this.refreshDetail();
+  }
+  async refreshItems(ids: number[]): Promise<void> {
+    if (!ids.length) return;
+    ids.forEach((id) => this.pendingRefreshIDs.add(id));
+    const requested = [...this.pendingRefreshIDs];
+    const generation = ++this.generation;
+    const changed = await Promise.all(
+      requested.map((id) => this.options.library.get(id)),
+    );
+    if (this.disposed || generation !== this.generation) return;
+    if (changed.some((item) => !item)) {
+      await this.refresh();
+      return;
+    }
+    const previous = new Map(this.items.map((item) => [item.itemID, item]));
+    const next = new Map(previous);
+    const changedIDs = new Set(requested);
+    const navigationNeeded = (changed as PaperDTO[]).some((item) => {
+      const old = previous.get(item.itemID);
+      return (
+        !old ||
+        JSON.stringify(old.tags) !== JSON.stringify(item.tags) ||
+        JSON.stringify(old.collectionIDs) !== JSON.stringify(item.collectionIDs)
+      );
+    });
+    const navigation = navigationNeeded
+      ? await this.options.navigation?.()
+      : null;
+    if (this.disposed || generation !== this.generation) return;
+    for (const item of changed as PaperDTO[]) {
+      const old = previous.get(item.itemID);
+      if (
+        !old ||
+        old.attachmentID !== item.attachmentID ||
+        old.attachmentPath !== item.attachmentPath
+      )
+        this.coverURLs.delete(item.itemID);
+      next.set(item.itemID, item);
+    }
+    this.items = [...next.values()];
+    this.pendingRefreshIDs.clear();
+    const nextNavigation =
+      navigation ||
+      (navigationNeeded
+        ? {
+            collections: this.navigation.collections,
+            tags: [...new Set(this.items.flatMap((item) => item.tags))],
+            currentCollectionID: this.navigation.currentCollectionID,
+          }
+        : null);
+    if (
+      nextNavigation &&
+      JSON.stringify(this.navigation) !== JSON.stringify(nextNavigation)
+    ) {
+      this.navigation = nextNavigation;
+      this.renderSidebar();
+    }
+    this.render(
+      new Set([...previous.keys()].filter((id) => !changedIDs.has(id))),
+    );
     this.refreshDetail();
   }
   destroy(): void {
@@ -277,8 +359,12 @@ export class AppController {
         }
       : item;
   }
-  private render(): void {
+  private render(reuse?: Set<number>): void {
     if (this.disposed) return;
+    const focused = this.options.document.activeElement as HTMLElement | null;
+    const focusedID = focused
+      ?.closest(".zcl-card")
+      ?.getAttribute("data-item-id");
     const view = this.options.state.viewState;
     let items = this.items;
     if (view.scope.startsWith("collection:"))
@@ -290,12 +376,14 @@ export class AppController {
     const visible = sortPapers(searchPapers(items, view.query), view.sort).map(
       (item) => this.displayed(item),
     );
-    renderBoard(
-      this.board,
-      visible,
-      this.options.state.items,
-      this.boardOptions(),
-    );
+    renderBoard(this.board, visible, this.options.state.items, {
+      ...this.boardOptions(),
+      reuse,
+    });
+    if (focusedID && focused && !focused.isConnected)
+      this.board
+        .querySelector<HTMLElement>(`[data-item-id="${focusedID}"]`)
+        ?.focus();
     if (!visible.length)
       this.board.append(
         element(
@@ -566,7 +654,7 @@ export class AppController {
       this.options.state.fieldMapping = valid.fieldMapping;
       this.options.state.colorRules = valid.colorRules;
       await this.persist();
-      await this.refresh();
+      await this.refresh(false);
       return;
     }
     await this.options.saveState(valid);
@@ -576,7 +664,7 @@ export class AppController {
       "zcl-sort",
     ) as HTMLSelectElement | null;
     if (sort) sort.value = valid.viewState.sort;
-    await this.refresh();
+    await this.refresh(false);
     this.main.scrollTop = valid.viewState.scrollTop;
   }
 }

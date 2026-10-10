@@ -30,19 +30,42 @@ export function renderBoard(
     covers?: Map<number, string>;
     selection?: Set<number>;
     colorRules?: ColorRule[];
+    reuse?: Set<number>;
   },
 ): void {
-  const fragment = options.document.createDocumentFragment();
-  for (const item of items) {
+  const existing = options.reuse
+    ? new Map(
+        [...container.querySelectorAll<HTMLElement>(".zcl-card")].map(
+          (card) => [Number(card.dataset.itemId), card],
+        ),
+      )
+    : null;
+  const cards = items.map((item) => {
     const state = states[item.itemID] || defaultCardState();
-    fragment.append(
+    return (
+      (options.reuse?.has(item.itemID) && existing?.get(item.itemID)) ||
       renderCard(item, state, {
         ...options,
         coverUrl: options.covers?.get(item.itemID),
         selected: options.selection?.has(item.itemID),
         color: resolveColor(item, state, options.colorRules || []),
-      }),
+      })
     );
+  });
+  if (!options.reuse) {
+    const fragment = options.document.createDocumentFragment();
+    fragment.append(...cards);
+    container.replaceChildren(fragment);
+    return;
   }
-  container.replaceChildren(fragment);
+  let next = container.firstElementChild;
+  for (const card of cards) {
+    if (card !== next) container.insertBefore(card, next);
+    next = card.nextElementSibling;
+  }
+  while (next) {
+    const remove = next;
+    next = next.nextElementSibling;
+    remove.remove();
+  }
 }

@@ -11,10 +11,10 @@ export default defineConfig({
   namespace: pkg.config.addonRef,
   updateURL:
     process.env.ZCL_UPDATE_URL ||
-    "https://example.invalid/zotero-card-library/update.json",
+    "https://github.com/Ausanx/zotero-card-library/releases/download/release/update.json",
   xpiDownloadLink:
     process.env.ZCL_XPI_DOWNLOAD_URL ||
-    "https://example.invalid/zotero-card-library/{{xpiName}}.xpi",
+    `https://github.com/Ausanx/zotero-card-library/releases/download/v${pkg.version}/zotero-card-library.xpi`,
 
   build: {
     assets: ["addon/**/*.*"],

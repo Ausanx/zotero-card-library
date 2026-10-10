@@ -33,10 +33,25 @@ class Addon {
     this.unregisterMenu = registerMenu(() => this.api.openCardLibrary());
     this.unregisterNotifier = registerLibraryNotifier(
       Zotero.Notifier as any,
-      () => {
-        void this.controller
-          ?.refresh()
-          .catch((error) => Zotero.logError(error));
+      (type, ids) => {
+        const changed =
+          type === "item" || type === "file"
+            ? ids.map((id) => {
+                const item = Zotero.Items.get(Number(id));
+                if (
+                  !item ||
+                  item.deleted ||
+                  item.libraryID !== Zotero.Libraries.userLibraryID
+                )
+                  return null;
+                return item.isRegularItem() ? item.id : item.parentID || null;
+              })
+            : null;
+        const refresh =
+          changed?.length && changed.every((id) => id !== null)
+            ? this.controller?.refreshItems(changed as number[])
+            : this.controller?.refresh();
+        void refresh?.catch((error) => Zotero.logError(error));
       },
       100,
       (ids) => {

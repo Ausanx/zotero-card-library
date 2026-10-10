@@ -25,10 +25,10 @@ jobs:
       - name: Publish version assets
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" .scaffold/build/*.xpi .scaffold/build/source.zip --generate-notes
+        run: gh release create "$GITHUB_REF_NAME" .scaffold/build/*.xpi .scaffold/build/source.zip --verify-tag --latest --generate-notes
       - name: Publish update manifest
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release view release || gh release create release --title "Plugin update manifest" --notes "Zotero update metadata"
+          gh release view release || gh release create release --latest=false --prerelease --title "Plugin update manifest" --notes "Zotero update metadata"
           gh release upload release .scaffold/build/update.json --clobber

@@ -24,4 +24,4 @@ Node.js 22.8+、npm、Zotero 9.0.6。运行 `npm ci`，依次执行 `npm test`�
 
 ## Windows SWC 缓存
 
-新版本 SWC 会校验原生缓存目录的 Windows ACL。若构建报告 `ERR_SWC_NATIVE_CACHE`，将 `SWC_NATIVE_BINDING_CACHE` 指向仅当前用户、SYSTEM 和 Administrators 可写的专用目录。本次验证使用 `C:\Users\Ausan\zcl-swc-cache`；不要放宽系统目录权限或关闭校验。CI 的 Linux 环境不需要此设置。
+新版本 SWC 会校验原生缓存目录的 Windows ACL。若构建报告 `ERR_SWC_NATIVE_CACHE`，将 `SWC_NATIVE_BINDING_CACHE` 指向仅当前用户、SYSTEM 和 Administrators 可写的专用目录；不要放宽系统目录权限或关闭校验。CI 的 Linux 环境不需要此设置。

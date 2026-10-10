@@ -69,6 +69,127 @@ function setup(overrides: Partial<AppControllerOptions> = {}) {
   return { dom, state, controller, saved, added, detailWindows };
 }
 describe("card library controller", () => {
+  it("renders the sidebar when initial navigation is empty", async () => {
+    const { dom, controller, state } = setup({
+      navigation: async () => ({ collections: [], tags: [] }),
+    });
+    state.viewState.scope = "library";
+    try {
+      await controller.start();
+      assert.ok(dom.window.document.querySelector(".zcl-sidebar"));
+    } finally {
+      controller.destroy();
+    }
+  });
+  it("refreshes one changed paper without rereading or replacing other cards", async () => {
+    let title = "Original title";
+    let listCalls = 0;
+    let getCalls = 0;
+    let navigationCalls = 0;
+    const changed = () => ({ ...paper, title });
+    const other = { ...paper, itemID: 2, title: "Other paper" };
+    const { dom, controller, state } = setup({
+      library: {
+        list: async () => {
+          listCalls++;
+          return [changed(), other];
+        },
+        get: async () => {
+          getCalls++;
+          return changed();
+        },
+        openPDF: async () => {},
+        addToCollection: async () => {},
+      },
+      navigation: async () => {
+        navigationCalls++;
+        return { collections: [], tags: [] };
+      },
+    });
+    state.viewState.scope = "library";
+    try {
+      await controller.start();
+      const unchanged =
+        dom.window.document.querySelector<HTMLElement>('[data-item-id="2"]')!;
+      unchanged.focus();
+      title = "Updated title";
+      await controller.refreshItems([1]);
+      assert.equal(listCalls, 1);
+      assert.equal(getCalls, 1);
+      assert.equal(navigationCalls, 1);
+      assert.equal(
+        dom.window.document.querySelector('[data-item-id="2"]'),
+        unchanged,
+      );
+      assert.equal(dom.window.document.activeElement, unchanged);
+      assert.match(
+        dom.window.document.querySelector('[data-item-id="1"]')!.textContent!,
+        /Updated title/,
+      );
+    } finally {
+      controller.destroy();
+    }
+  });
+  it("keeps both papers when incremental refreshes overlap", async () => {
+    const first = { ...paper, title: "First" };
+    const second = { ...paper, itemID: 2, title: "Second" };
+    let finishFirst!: (value: typeof paper) => void;
+    let firstRead = true;
+    const { dom, controller, state } = setup({
+      library: {
+        list: async () => [first, second],
+        get: async (id) => {
+          if (id === 1 && firstRead) {
+            firstRead = false;
+            return new Promise<typeof paper>((resolve) => {
+              finishFirst = resolve;
+            });
+          }
+          return id === 1
+            ? { ...first, title: "Updated first" }
+            : { ...second, title: "Updated second" };
+        },
+        openPDF: async () => {},
+        addToCollection: async () => {},
+      },
+    });
+    state.viewState.scope = "library";
+    try {
+      await controller.start();
+      const firstRefresh = controller.refreshItems([1]);
+      await controller.refreshItems([2]);
+      finishFirst({ ...first, title: "Updated first" });
+      await firstRefresh;
+      assert.match(
+        dom.window.document.querySelector('[data-item-id="1"]')!.textContent!,
+        /Updated first/,
+      );
+      assert.match(
+        dom.window.document.querySelector('[data-item-id="2"]')!.textContent!,
+        /Updated second/,
+      );
+    } finally {
+      controller.destroy();
+    }
+  });
+  it("keeps unchanged cards and keyboard focus through a full refresh", async () => {
+    const { dom, controller, state } = setup();
+    state.viewState.scope = "library";
+    try {
+      await controller.start();
+      const unchanged =
+        dom.window.document.querySelector<HTMLElement>('[data-item-id="2"]')!;
+      unchanged.focus();
+      await controller.refresh();
+      assert.equal(
+        dom.window.document.querySelector('[data-item-id="2"]'),
+        unchanged,
+      );
+      assert.equal(dom.window.document.activeElement, unchanged);
+    } finally {
+      controller.destroy();
+    }
+  });
   it("changes one card without replacing other cards or their focus", async () => {
     const { dom, controller, state } = setup();
     state.viewState.scope = "library";

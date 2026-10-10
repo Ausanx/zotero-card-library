@@ -6,6 +6,26 @@ import {
 } from "../../src/zotero/notifier";
 
 describe("library notifier", () => {
+  it("retains every changed item ID while debouncing notifications", async () => {
+    let observer: NotifierObserver | undefined;
+    const changes: Array<{ type: string; ids: Array<string | number> }> = [];
+    const unregister = registerLibraryNotifier(
+      {
+        registerObserver: (value) => {
+          observer = value;
+          return 1;
+        },
+        unregisterObserver: () => {},
+      },
+      (type, ids) => changes.push({ type, ids }),
+      0,
+    );
+    observer!.notify("modify", "item", [1], {});
+    observer!.notify("modify", "item", [2], {});
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    assert.deepEqual(changes, [{ type: "item", ids: [1, 2] }]);
+    unregister();
+  });
   it("debounces supported changes and unregisters cleanly", async () => {
     let observer: NotifierObserver | undefined;
     let unregistered = -1;

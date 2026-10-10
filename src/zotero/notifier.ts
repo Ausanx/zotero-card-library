@@ -23,6 +23,8 @@ export function registerLibraryNotifier(
   onOpen?: (ids: Array<string | number>) => void,
 ): () => void {
   let timer: ReturnType<typeof setTimeout> | undefined;
+  let pendingType: string | null | undefined;
+  const pendingIDs = new Set<string | number>();
   const observer: NotifierObserver = {
     notify(event, type, ids) {
       if (type === "file" && event === "open") onOpen?.(ids);
@@ -39,10 +41,17 @@ export function registerLibraryNotifier(
       ) {
         return;
       }
+      pendingType =
+        pendingType === undefined || pendingType === type ? type : null;
+      ids.forEach((id) => pendingIDs.add(id));
       if (timer) clearTimeout(timer);
       timer = setTimeout(() => {
         timer = undefined;
-        onChange(type, ids);
+        const changedType = pendingType;
+        const changedIDs = [...pendingIDs];
+        pendingType = undefined;
+        pendingIDs.clear();
+        onChange(changedType || "multiple", changedIDs);
       }, delay);
     },
   };
@@ -53,6 +62,7 @@ export function registerLibraryNotifier(
   );
   return () => {
     if (timer) clearTimeout(timer);
+    pendingIDs.clear();
     notifier.unregisterObserver(id);
   };
 }

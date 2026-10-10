@@ -2,9 +2,9 @@
 
 2026-10-10，Windows，本机 Zotero 9.0.6，独立 headless profile，238 条合成文献及本地合成 PDF。
 
-- `npm test`：61 项通过；`npm run lint:check`：Prettier、ESLint 通过。
-- `npm run build`、`npm run verify:package`：类型检查及 0.1.3 XPI 校验通过。
-- `npm run test:zotero`：47 项原生验收断言通过；结果目录 `.scaffold/zotero-test-1791611703365/`。
+- `npm test`：66 项通过；`npm run lint:check`：Prettier、ESLint 通过；`npm audit --offline --audit-level=high`：0 项已知漏洞。
+- `npm run build`、`npm run verify:package`：类型检查及 0.1.3 XPI / 更新清单 SHA-512 校验通过。
+- `npm run test:zotero`：48 项原生验收断言通过；结果目录 `.scaffold/zotero-test-1791613974526/`。新增断言确认 Zotero 修改单篇文献时不替换其他卡片节点。
 
 人工查看主窗口、详情窗口和深色主题截图：灰蓝色背景、淡蓝紫默认卡片、浅青绿色已读卡片、蓝色主操作和侧栏选中态均显示正常；卡片圆角、内描边、阴影和按钮布局保持清晰。用户自定义的单卡颜色与颜色规则仍按现有优先级应用。
 
@@ -34,7 +34,7 @@
 
 已人工查看同目录的 `screenshot.png`、`detail.png`、`compact.png` 和 `dark.png`。色卡、图片与按钮并排布局和详情中的颜色控件显示正常，没有发现文本遮挡或按钮溢出。
 
-构建时 SWC 默认缓存目录的 ACL 被原生绑定拒绝；本轮通过进程级 `SWC_NATIVE_BINDING_CACHE=C:\Users\Ausan\.codex\native-swc-cache` 指定独立缓存，并以 `NODE_OPTIONS=--use-system-ca` 构建。没有改变依赖版本或原缓存权限。首次 headless 启动在验收驱动执行前因图形通道退出；新建测试 profile 重试后全部通过。
+构建时 SWC 默认缓存目录的 ACL 被原生绑定拒绝；本轮通过进程级 `SWC_NATIVE_BINDING_CACHE` 指定独立缓存，并以 `NODE_OPTIONS=--use-system-ca` 构建。没有改变依赖版本或原缓存权限。首次 headless 启动在验收驱动执行前因图形通道退出；新建测试 profile 重试后全部通过。
 
 备份恢复使用注入的文件适配器，裁剪使用比例坐标；系统文件选择器、实际鼠标 / 不同 DPI、真实扫描版与复杂多页论文和未来 Zotero 升级仍需人工检查。所有测试数据均在本地生成，未上传本地文件数据。
 
