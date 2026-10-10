@@ -88,7 +88,7 @@ export function createDetailView(options: DetailViewOptions) {
     color.type = "color";
     color.value = normalizeCardColor(
       d,
-      cardColor || state.colorOverride || "#e5d8af",
+      cardColor || state.colorOverride || "#e4eafb",
     );
     color.addEventListener("change", () =>
       options.onState?.(item, { colorOverride: color.value }),

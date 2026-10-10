@@ -386,7 +386,7 @@ async function runAcceptance() {
       "detail window saves reading status locally",
     );
     assert(
-      dd.querySelector('input[type="color"]').value === "#4d795f",
+      dd.querySelector('input[type="color"]').value === "#cce4dd",
       "detail color control follows reading status",
     );
     controller.options.state.colorRules = [

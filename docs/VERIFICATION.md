@@ -1,3 +1,13 @@
+# 0.1.3 验证记录
+
+2026-10-10，Windows，本机 Zotero 9.0.6，独立 headless profile，238 条合成文献及本地合成 PDF。
+
+- `npm test`：61 项通过；`npm run lint:check`：Prettier、ESLint 通过。
+- `npm run build`、`npm run verify:package`：类型检查及 0.1.3 XPI 校验通过。
+- `npm run test:zotero`：47 项原生验收断言通过；结果目录 `.scaffold/zotero-test-1791611703365/`。
+
+人工查看主窗口、详情窗口和深色主题截图：灰蓝色背景、淡蓝紫默认卡片、浅青绿色已读卡片、蓝色主操作和侧栏选中态均显示正常；卡片圆角、内描边、阴影和按钮布局保持清晰。用户自定义的单卡颜色与颜色规则仍按现有优先级应用。
+
 # 0.1.2 验证记录
 
 2026-10-10，Windows，本机 Zotero 9.0.6，独立 headless profile，238 条合成文献及本地合成 PDF。

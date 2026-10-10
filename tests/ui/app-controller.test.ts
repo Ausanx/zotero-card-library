@@ -335,7 +335,7 @@ describe("card library controller", () => {
       await tick();
       assert.equal(
         (dd.querySelector('input[type="color"]') as HTMLInputElement).value,
-        "#4d795f",
+        "#cce4dd",
       );
     } finally {
       controller.destroy();

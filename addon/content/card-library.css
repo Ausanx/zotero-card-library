@@ -1,23 +1,33 @@
 :root {
   font-family: Arial, "Microsoft YaHei", sans-serif;
   font-size: 14px;
-  color: #303a34;
-  background: #fafafa;
-  --canvas: #fafafa;
-  --surface: #fff;
-  --surface-muted: #f4f5f4;
-  --line: #e6e9e6;
-  --text-muted: #6e7972;
-  --accent: #315e49;
+  color: #233148;
+  background: #eff3f8;
+  --canvas: #eff3f8;
+  --canvas-glow: #dcefeb;
+  --sidebar: #e7edf7;
+  --surface: #ffffff;
+  --surface-muted: #edf2f8;
+  --line: #d9e2ee;
+  --text-muted: #7b8fab;
+  --accent: #3867d6;
+  --accent-strong: #2c56c9;
+  --accent-soft: #dce7ff;
+  --primary-ink: #ffffff;
 }
 :root[data-theme="dark"] {
-  color: #e6eee8;
-  --canvas: #1c241f;
-  --surface: #263129;
-  --surface-muted: #303e34;
-  --line: #3b4a40;
-  --text-muted: #adbbaf;
-  --accent: #b0d5bc;
+  color: #e8eef8;
+  --canvas: #1d2738;
+  --canvas-glow: #263d4a;
+  --sidebar: #253248;
+  --surface: #273448;
+  --surface-muted: #324159;
+  --line: #45536b;
+  --text-muted: #acbad1;
+  --accent: #9db8ff;
+  --accent-strong: #b4c8ff;
+  --accent-soft: #334d7f;
+  --primary-ink: #18253d;
 }
 * {
   box-sizing: border-box;
@@ -61,7 +71,7 @@ button:active:not(:disabled) {
   transform: scale(0.98);
 }
 :focus-visible {
-  outline: 3px solid #2f7fae;
+  outline: 3px solid #608af0;
   outline-offset: 3px;
 }
 .zcl-icon {
@@ -85,7 +95,7 @@ button:active:not(:disabled) {
   flex-direction: column;
   padding: 24px 12px 16px;
   border-right: 1px solid var(--line);
-  background: var(--surface);
+  background: var(--sidebar);
   gap: 20px;
 }
 .zcl-brand {
@@ -102,7 +112,7 @@ button:active:not(:disabled) {
   width: 34px;
   height: 34px;
   border-radius: 9px;
-  background: #315e49;
+  background: linear-gradient(135deg, #3867d6 0%, #12a4b6 100%);
   color: #fff;
   box-shadow: inset 0 1px 1px #ffffff40;
 }
@@ -148,7 +158,7 @@ button:active:not(:disabled) {
   color: var(--text-muted);
 }
 .zcl-scope-button.is-active {
-  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+  background: var(--accent-soft);
   color: var(--accent);
   font-weight: 700;
 }
@@ -180,6 +190,9 @@ button:active:not(:disabled) {
   min-height: 0;
   overflow: auto;
   container: main / inline-size;
+  background:
+    radial-gradient(circle at 94% 0, var(--canvas-glow), transparent 38%),
+    var(--canvas);
 }
 .zcl-toolbar {
   display: flex;
@@ -254,20 +267,20 @@ button:active:not(:disabled) {
   border: 1px solid #ffffff35;
   box-shadow:
     inset 0 0 0 2px #ffffff20,
-    0 6px 18px #25352a17,
-    0 2px 4px #25352a09;
+    0 6px 18px #30415c1c,
+    0 2px 4px #30415c0c;
   cursor: pointer;
   transition: box-shadow 150ms;
 }
 .zcl-card:hover {
   box-shadow:
     inset 0 0 0 2px #ffffff30,
-    0 8px 24px #25352a25,
-    0 2px 4px #25352a12;
+    0 8px 24px #30415c2b,
+    0 2px 4px #30415c16;
 }
 .zcl-card[data-tone="dark"] {
   --card-button: #eff5ff;
-  --card-button-ink: #294c74;
+  --card-button-ink: #345b94;
 }
 .zcl-card[data-tone="dark"] .zcl-status-badge {
   background: #0000000c;
@@ -288,7 +301,7 @@ button:active:not(:disabled) {
   padding: 0;
   margin: 0;
   flex: none;
-  accent-color: #315e49;
+  accent-color: #3867d6;
   opacity: 0.65;
 }
 .zcl-card-top input:checked {
@@ -359,7 +372,7 @@ button:active:not(:disabled) {
   object-fit: contain;
 }
 .zcl-card-cover.is-placeholder {
-  color: #6e7972;
+  color: var(--text-muted);
   font-size: 11px;
   text-align: center;
   padding: 12px;
@@ -405,13 +418,13 @@ button:active:not(:disabled) {
   column-span: all;
 }
 .zcl-primary-button {
-  background: #315e49;
-  color: #fff;
+  background: var(--accent);
+  color: var(--primary-ink);
   border: 0;
   padding: 10px 16px;
 }
 .zcl-primary-button:hover {
-  background: #264a39;
+  background: var(--accent-strong);
 }
 .zcl-detail-window {
   overflow: auto;
@@ -534,30 +547,30 @@ input[type="color"] {
   text-align: left;
 }
 .zcl-dialog {
-  --surface: #fff;
-  --surface-muted: #edf3f5;
-  --line: #dce5e8;
-  --text-muted: #637a85;
+  --surface: #ffffff;
+  --surface-muted: #edf2f8;
+  --line: #d9e2ee;
+  --text-muted: #7b8fab;
   width: min(680px, 90vw);
   max-height: 90vh;
-  border: 1px solid #dce5e8;
+  border: 1px solid #d9e2ee;
   border-radius: 18px;
   padding: 26px;
-  background: #fff;
-  color: #273b43;
+  background: #ffffff;
+  color: #233148;
   overflow: auto;
   box-shadow: 0 20px 70px #0004;
 }
 html[data-theme="dark"] .zcl-dialog {
-  --surface: #22323b;
-  --surface-muted: #2c3d46;
-  --line: #40545e;
-  --text-muted: #abc0c9;
-  background: #22323b;
-  color: #e4eff2;
+  --surface: #273448;
+  --surface-muted: #324159;
+  --line: #45536b;
+  --text-muted: #acbad1;
+  background: #273448;
+  color: #e8eef8;
 }
 .zcl-dialog::backdrop {
-  background: #14262e70;
+  background: #101a2b8c;
 }
 .zcl-dialog h2 {
   margin-top: 0;

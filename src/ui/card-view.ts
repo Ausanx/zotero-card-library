@@ -22,14 +22,14 @@ export function normalizeCardColor(d: Document, color: string): string {
   probe.style.color = color;
   const window = d.defaultView;
   const body = d.body;
-  if (!probe.style.color || !window || !body) return "#e5d8af";
+  if (!probe.style.color || !window || !body) return "#e4eafb";
   body.append(probe);
   const channels = window
     .getComputedStyle(probe)
     ?.color.match(/[\d.]+/g)
     ?.map(Number);
   probe.remove();
-  if (!channels || channels.length < 3) return "#e5d8af";
+  if (!channels || channels.length < 3) return "#e4eafb";
   const opacity = channels[3] ?? 1;
   const canvas = window
     .getComputedStyle(body)
@@ -57,12 +57,12 @@ export function resolveCardColor(
     ruleColor ||
     state.colorOverride ||
     (!item.attachmentPath
-      ? "#d6d6d2"
+      ? "#dfe4eb"
       : state.readingStatus === "read"
-        ? "#4d795f"
+        ? "#cce4dd"
         : state.readingStatus === "reading"
-          ? "#4f729c"
-          : "#e5d8af")
+          ? "#c9dbf1"
+          : "#e4eafb")
   );
 }
 export function renderCard(
@@ -102,7 +102,7 @@ export function renderCard(
   card.dataset.tone = dark ? "dark" : "light";
   card.style.setProperty(
     "--card-ink",
-    dark ? "#ffffff" : luminance >= 0.45 ? "#30352f" : "#000000",
+    dark ? "#ffffff" : luminance >= 0.45 ? "#233148" : "#000000",
   );
   const readingStatus =
     state.readingStatus === "read"
